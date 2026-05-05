@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Users, Package, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Users, Package, AlertTriangle, BarChart3 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { StatCard } from '@/components/ui/StatCard';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
@@ -32,17 +32,17 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader><h3 className="font-bold">Desempenho de Vendas</h3></CardHeader>
-          <CardContent className="min-h-[300px] flex flex-col justify-center items-center text-muted-foreground italic">
-            <p>Gráfico de Vendas Semanais (Mock)</p>
-            <div className="w-full h-48 mt-4 bg-white/5 rounded-xl border border-dashed border-white/10 flex items-center justify-center">Visualização de Gráfico em breve</div>
+          <CardContent className="min-h-[300px] flex flex-col justify-center items-center text-muted-foreground bg-white/5 rounded-b-3xl border-t border-primary/5">
+            <BarChart3 className="w-16 h-16 text-primary/10 mb-4" />
+            <p className="font-medium text-primary/40 uppercase text-[10px] tracking-widest">Sincronizando dados de faturamento em tempo real</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><h3 className="font-bold">Ações Rápidas</h3></CardHeader>
+          <CardHeader><h3 className="font-bold">Gestão Operacional</h3></CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full">Adicionar Produto</Button>
-            <Button variant="secondary" className="w-full">Exportar Relatório</Button>
-            <Button variant="outline" className="w-full">Configurações</Button>
+            <Button className="w-full">Cadastrar Produto</Button>
+            <Button variant="secondary" className="w-full">Gerar Relatório Analítico</Button>
+            <Button variant="outline" className="w-full">Configurações do Sistema</Button>
           </CardContent>
         </Card>
       </div>

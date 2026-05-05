@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { LogIn, Mail, Lock, Loader2, Palette } from 'lucide-react';
+import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
 import { login } from '@/services/auth';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from '@/components/Logo';
@@ -52,7 +52,7 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md p-10 relative z-10 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] shadow-2xl shadow-primary/5"
       >
-        <div className="text-center mb-10">
+        <div className="text-center mb-10 flex flex-col items-center">
           <IZIPISLogo variant="principal" className="mb-2" />
           <p className="text-foreground/60 font-medium tracking-tight mt-4">Gestão inteligente para o seu mercado</p>
         </div>
@@ -121,10 +121,7 @@ export default function LoginPage() {
           <div className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 font-bold">
             <p>Dica: use <span className="text-primary">admin@izipis.com</span> para Admin</p>
           </div>
-          <Link href="/brand" className="inline-flex items-center gap-2 text-xs font-bold text-accent hover:text-primary transition-colors uppercase tracking-widest">
-            <Palette className="w-3 h-3" />
-            Visual Identity Case
-          </Link>
+
         </div>
       </motion.div>
     </div>

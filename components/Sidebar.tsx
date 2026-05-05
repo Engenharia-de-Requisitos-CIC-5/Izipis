@@ -10,10 +10,8 @@ import {
   ShoppingCart, 
   BarChart3, 
   Settings, 
-  LogOut, 
   ChevronLeft, 
-  BrainCircuit,
-  Palette
+  BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from './Logo';
@@ -24,7 +22,6 @@ const MENU_ITEMS = [
   { icon: ShoppingCart, label: 'Vendas', href: '/admin/sales' },
   { icon: BarChart3, label: 'Relatórios', href: '/admin/reports' },
   { icon: BrainCircuit, label: 'ML Insights', href: '/admin/ml', isNew: true },
-  { icon: Palette, label: 'Brand Manual', href: '/brand' },
 ];
 
 export default function Sidebar() {
@@ -32,10 +29,6 @@ export default function Sidebar() {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('izipis_user');
-    router.push('/login');
-  };
 
   return (
     <motion.aside
@@ -81,14 +74,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-danger hover:bg-danger/10 transition-all group"
-        >
-          <LogOut className="w-5 h-5 min-w-[20px] transition-transform group-hover:-translate-x-1" />
-          {!isCollapsed && <span className="font-heading font-bold text-sm uppercase tracking-tight">Sair</span>}
-        </button>
+      <div className="p-4 relative">
 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}

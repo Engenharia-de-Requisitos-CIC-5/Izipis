@@ -1,6 +1,6 @@
 import { User, UserRole } from '@/lib/types';
 
-const MOCK_USERS: User[] = [
+const USERS: User[] = [
   {
     id: '1',
     name: 'Admin Izipis',
@@ -19,7 +19,7 @@ export async function login(email: string, password: string): Promise<User | nul
   // Simulate API delay
   await new Promise((resolve) => setTimeout(resolve, 800));
 
-  const user = MOCK_USERS.find((u) => u.email === email);
+  const user = USERS.find((u) => u.email === email);
   
   // For demo purposes, any password works if email exists
   if (user && password.length > 0) {
@@ -29,7 +29,15 @@ export async function login(email: string, password: string): Promise<User | nul
   return null;
 }
 
-export async function getCurrentUser(): Promise<User | null> {
-  // In a real app, this would check a cookie or token
-  return null;
+export async function logout() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('izipis_user');
+    window.location.href = '/login';
+  }
+}
+
+export function getStoredUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem('izipis_user');
+  return stored ? JSON.parse(stored) : null;
 }

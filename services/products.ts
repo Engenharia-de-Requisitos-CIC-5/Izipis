@@ -1,6 +1,6 @@
 import { Product } from '@/lib/types';
 
-const MOCK_PRODUCTS: Product[] = [
+const DEFAULT_PRODUCTS: Product[] = [
   // Mercearia & Grãos
   { id: 'p1', name: 'Arroz Integral 1kg', description: 'Arroz integral de alta qualidade.', price: 8.50, category: 'Mercearia', stock: 45, sku: '78910001' },
   { id: 'p2', name: 'Feijão Carioca 1kg', description: 'Feijão carioca selecionado.', price: 7.20, category: 'Mercearia', stock: 30, sku: '78910002' },
@@ -82,20 +82,68 @@ const MOCK_PRODUCTS: Product[] = [
   { id: 'p60', name: 'Vassoura Multiuso', description: 'Cerdas macias.', price: 15.80, category: 'Bazar', stock: 15, sku: '78901003' },
 ];
 
+function getStoredProducts(): Product[] {
+  if (typeof window === 'undefined') return DEFAULT_PRODUCTS;
+  const stored = localStorage.getItem('izipis_products');
+  if (stored) return JSON.parse(stored);
+  localStorage.setItem('izipis_products', JSON.stringify(DEFAULT_PRODUCTS));
+  return DEFAULT_PRODUCTS;
+}
+
+function saveProducts(products: Product[]) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('izipis_products', JSON.stringify(products));
+  }
+}
+
 export async function getProducts(): Promise<Product[]> {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return MOCK_PRODUCTS;
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return getStoredProducts();
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return MOCK_PRODUCTS.find(p => p.id === id) || null;
+  const products = getStoredProducts();
+  return products.find(p => p.id === id) || null;
+}
+
+export async function addProduct(product: Omit<Product, 'id'>): Promise<Product> {
+  const products = getStoredProducts();
+  const newProduct = {
+    ...product,
+    id: `p${Date.now()}`
+  };
+  products.push(newProduct);
+  saveProducts(products);
+  return newProduct;
+}
+
+export async function updateProduct(id: string, updates: Partial<Product>): Promise<Product | null> {
+  const products = getStoredProducts();
+  const index = products.findIndex(p => p.id === id);
+  if (index !== -1) {
+    products[index] = { ...products[index], ...updates };
+    saveProducts(products);
+    return products[index];
+  }
+  return null;
+}
+
+export async function deleteProduct(id: string): Promise<boolean> {
+  const products = getStoredProducts();
+  const filtered = products.filter(p => p.id !== id);
+  if (filtered.length !== products.length) {
+    saveProducts(filtered);
+    return true;
+  }
+  return false;
 }
 
 export async function updateStock(id: string, quantity: number): Promise<boolean> {
-  const product = MOCK_PRODUCTS.find(p => p.id === id);
-  if (product) {
-    product.stock -= quantity;
+  const products = getStoredProducts();
+  const index = products.findIndex(p => p.id === id);
+  if (index !== -1) {
+    products[index].stock -= quantity;
+    saveProducts(products);
     return true;
   }
   return false;

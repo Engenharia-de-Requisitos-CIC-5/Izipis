@@ -1,10 +1,24 @@
 import { Sale, SaleItem } from '@/lib/types';
 import { updateStock } from './products';
 
-const MOCK_SALES: Sale[] = [];
+const DEFAULT_SALES: Sale[] = [];
+
+function getStoredSales(): Sale[] {
+  if (typeof window === 'undefined') return DEFAULT_SALES;
+  const stored = localStorage.getItem('izipis_sales');
+  if (stored) return JSON.parse(stored);
+  return DEFAULT_SALES;
+}
+
+function saveSales(sales: Sale[]) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('izipis_sales', JSON.stringify(sales));
+  }
+}
 
 export async function createSale(sale: Omit<Sale, 'id' | 'timestamp'>): Promise<Sale> {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  // Simulate network delay
+  await new Promise((resolve) => setTimeout(resolve, 800));
 
   const newSale: Sale = {
     ...sale,
@@ -17,13 +31,16 @@ export async function createSale(sale: Omit<Sale, 'id' | 'timestamp'>): Promise<
     await updateStock(item.productId, item.quantity);
   }
 
-  MOCK_SALES.push(newSale);
+  const sales = getStoredSales();
+  sales.push(newSale);
+  saveSales(sales);
+  
   return newSale;
 }
 
 export async function getSales(): Promise<Sale[]> {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  return MOCK_SALES;
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return getStoredSales();
 }
 
 export async function getDailyTotal(): Promise<number> {
@@ -32,4 +49,20 @@ export async function getDailyTotal(): Promise<number> {
   return sales
     .filter(s => s.timestamp.startsWith(today))
     .reduce((acc, s) => acc + s.total, 0);
+}
+
+export async function getSalesStats() {
+  const sales = await getSales();
+  
+  // Basic stats for dashboard
+  const totalRevenue = sales.reduce((acc, s) => acc + s.total, 0);
+  const totalOrders = sales.length;
+  const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  
+  return {
+    totalRevenue,
+    totalOrders,
+    avgTicket,
+    recentSales: sales.slice(-5).reverse()
+  };
 }

@@ -28,6 +28,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { IZIPISLogo } from '@/components/Logo';
 import { useRouter } from 'next/navigation';
+import { logout } from '@/services/auth';
 
 export default function PDVPage() {
   const router = useRouter();
@@ -82,9 +83,8 @@ export default function PDVPage() {
     }, 1500);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('izipis_user');
-    router.push('/login');
+  const handleLogout = async () => {
+    await logout();
   };
 
   const simulateScan = (sku: string) => {

@@ -118,10 +118,6 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-12 text-center space-y-4">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 font-bold">
-            <p>Dica: use <span className="text-primary">admin@izipis.com</span> para Admin</p>
-          </div>
-
         </div>
       </motion.div>
     </div>

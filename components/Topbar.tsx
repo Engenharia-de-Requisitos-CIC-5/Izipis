@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
+import { logout } from '@/services/auth';
 
 export default function Topbar() {
   const router = useRouter();
@@ -32,9 +33,8 @@ export default function Topbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('izipis_user');
-    router.push('/login');
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (

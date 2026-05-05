@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
   Package, 
@@ -12,11 +12,11 @@ import {
   Settings, 
   LogOut, 
   ChevronLeft, 
-  Store,
-  User as UserIcon,
-  BrainCircuit
+  BrainCircuit,
+  Palette
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { IZIPISLogo } from './Logo';
 
 const MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
@@ -24,6 +24,7 @@ const MENU_ITEMS = [
   { icon: ShoppingCart, label: 'Vendas', href: '/admin/sales' },
   { icon: BarChart3, label: 'Relatórios', href: '/admin/reports' },
   { icon: BrainCircuit, label: 'ML Insights', href: '/admin/ml', isNew: true },
+  { icon: Palette, label: 'Brand Manual', href: '/brand' },
 ];
 
 export default function Sidebar() {
@@ -40,48 +41,37 @@ export default function Sidebar() {
     <motion.aside
       initial={false}
       animate={{ width: isCollapsed ? 80 : 260 }}
-      className="h-screen bg-secondary/50 border-r border-border flex flex-col relative sticky top-0"
+      className="h-screen bg-primary border-r border-white/5 flex flex-col relative sticky top-0 shadow-2xl"
     >
       <div className="p-6 flex items-center gap-3">
-        <div className="min-w-[40px] h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-          <Store className="w-6 h-6 text-primary-foreground" />
-        </div>
-        {!isCollapsed && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-xl font-bold tracking-tight text-foreground"
-          >
-            Izipis
-          </motion.span>
-        )}
+        <IZIPISLogo variant={isCollapsed ? 'icon' : 'horizontal'} color="monochrome-white" className="transition-all" />
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-4 py-6 space-y-2">
         {MENU_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href}>
               <div
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl transition-all cursor-pointer group relative",
+                  "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all cursor-pointer group relative",
                   isActive 
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/10" 
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    ? "bg-secondary text-white shadow-xl shadow-black/20" 
+                    : "text-white/60 hover:bg-white/5 hover:text-white"
                 )}
               >
-                <item.icon className="w-5 h-5 min-w-[20px]" />
+                <item.icon className={cn("w-5 h-5 min-w-[20px]", isActive ? "text-white" : "text-white/40")} />
                 {!isCollapsed && (
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-heading font-bold text-sm uppercase tracking-tight">{item.label}</span>
                 )}
                 {!isCollapsed && item.isNew && (
-                  <span className="ml-auto text-[10px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full font-bold">
+                  <span className="ml-auto text-[10px] bg-accent text-white px-2 py-0.5 rounded-full font-bold shadow-sm">
                     NEW
                   </span>
                 )}
                 
                 {isCollapsed && (
-                  <div className="absolute left-16 bg-foreground text-background px-2 py-1 rounded text-xs invisible group-hover:visible whitespace-nowrap z-50">
+                  <div className="absolute left-20 bg-secondary text-white px-3 py-1.5 rounded-lg text-xs invisible group-hover:visible whitespace-nowrap z-50 shadow-xl font-bold uppercase tracking-widest">
                     {item.label}
                   </div>
                 )}
@@ -91,18 +81,18 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-white/5">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-400 hover:bg-red-400/10 transition-all"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-danger hover:bg-danger/10 transition-all group"
         >
-          <LogOut className="w-5 h-5 min-w-[20px]" />
-          {!isCollapsed && <span className="font-medium">Sair</span>}
+          <LogOut className="w-5 h-5 min-w-[20px] transition-transform group-hover:-translate-x-1" />
+          {!isCollapsed && <span className="font-heading font-bold text-sm uppercase tracking-tight">Sair</span>}
         </button>
 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-border border border-border rounded-full flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-all shadow-lg"
+          className="absolute -right-3 top-24 w-7 h-7 bg-white border border-primary/10 rounded-full flex items-center justify-center text-primary hover:bg-secondary hover:text-white transition-all shadow-lg z-50"
         >
           <ChevronLeft className={cn("w-4 h-4 transition-transform", isCollapsed && "rotate-180")} />
         </button>
@@ -110,3 +100,4 @@ export default function Sidebar() {
     </motion.aside>
   );
 }
+

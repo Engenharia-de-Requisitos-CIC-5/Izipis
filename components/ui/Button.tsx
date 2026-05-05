@@ -22,7 +22,7 @@ export function Button({
     secondary: 'bg-secondary text-secondary-foreground hover:bg-white/10',
     outline: 'border border-border bg-transparent hover:bg-white/5',
     ghost: 'bg-transparent hover:bg-white/5 text-muted-foreground hover:text-foreground',
-    danger: 'bg-red-400/10 text-red-400 hover:bg-red-400 hover:text-white',
+    danger: 'bg-danger/10 text-danger hover:bg-danger hover:text-white',
   };
 
   const sizes = {

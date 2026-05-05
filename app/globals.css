@@ -1,43 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: oklch(0.12 0.02 250);
-  --color-foreground: oklch(0.98 0.01 250);
+  --color-primary: #0D3335;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #1A5F60;
+  --color-secondary-foreground: #FFFFFF;
+  --color-accent: #E87A5D;
+  --color-accent-foreground: #FFFFFF;
+  --color-danger: #BC4749;
+  --color-danger-foreground: #FFFFFF;
+  --color-background: #F9F7F2;
+  --color-foreground: #2D2D2D;
   
-  --color-primary: oklch(0.55 0.15 240);
-  --color-primary-foreground: oklch(0.98 0.01 240);
-  
-  --color-secondary: oklch(0.25 0.05 250);
-  --color-secondary-foreground: oklch(0.9 0.02 250);
-  
-  --color-accent: oklch(0.7 0.2 145); /* Emerald-ish */
-  --color-accent-foreground: oklch(0.1 0.05 145);
-  
-  --color-muted: oklch(0.2 0.04 250);
-  --color-muted-foreground: oklch(0.7 0.02 250);
-  
-  --color-border: oklch(0.25 0.03 250);
-  --color-input: oklch(0.2 0.03 250);
-  --color-ring: oklch(0.55 0.15 240);
+  --color-border: #0D333515;
+  --color-input: #0D333508;
+  --color-ring: #1A5F60;
 
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
+  --font-sans: var(--font-roboto), ui-sans-serif, system-ui;
+  --font-heading: var(--font-montserrat), ui-sans-serif, system-ui;
+
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+  button, [role="button"], .cursor-pointer {
+    cursor: pointer !important;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold;
   }
 }
 
 .glass {
-  @apply bg-white/5 backdrop-blur-md border border-white/10;
+  @apply bg-white/60 backdrop-blur-xl border border-primary/5 shadow-2xl shadow-primary/5;
 }
 
 .card-gradient {
-  background: linear-gradient(135deg, oklch(0.2 0.05 250), oklch(0.15 0.03 250));
+  background: linear-gradient(135deg, #0D3335, #1A5F60);
 }

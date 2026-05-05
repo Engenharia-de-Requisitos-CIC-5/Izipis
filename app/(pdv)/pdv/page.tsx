@@ -20,6 +20,7 @@ import {
   Monitor
 } from 'lucide-react';
 import { getProducts } from '@/services/products';
+import { createSale } from '@/services/sales';
 import { Product } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useCart } from '@/hooks/useCart';
@@ -71,16 +72,32 @@ export default function PDVPage() {
     }
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
     setIsCheckingOut(true);
-    setTimeout(() => {
+    
+    try {
+      await createSale({
+        items: cart.map(item => ({
+          productId: item.product.id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price
+        })),
+        total: totalPrice,
+        paymentMethod: paymentMethod,
+        source: 'LOCAL'
+      });
+
       setIsCheckingOut(false);
       setShowSuccess(true);
       clearCart();
       setLastItem(null);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 1500);
+    } catch (error) {
+      console.error('Erro ao finalizar venda:', error);
+      setIsCheckingOut(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -164,7 +181,7 @@ export default function PDVPage() {
               </div>
             ) : lastItem ? (
               <motion.div 
-                key={lastItem.id + Date.now()} // Force animation on same item re-scan
+                key={lastItem.id + Date.now()} 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="w-full max-w-4xl"

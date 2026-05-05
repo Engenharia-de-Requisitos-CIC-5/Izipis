@@ -21,17 +21,17 @@ export interface Product {
 
 export interface SaleItem {
   productId: string;
+  name: string;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  price: number;
 }
 
 export interface Sale {
   id: string;
-  vendorId: string;
-  customerName?: string;
   items: SaleItem[];
   total: number;
-  paymentMethod: 'CASH' | 'CARD' | 'PIX';
+  paymentMethod: 'money' | 'card' | 'pix';
   timestamp: string;
+  source: 'LOCAL' | 'IFOOD';
+  customerName?: string;
 }

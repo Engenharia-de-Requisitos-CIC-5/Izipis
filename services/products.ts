@@ -1,4 +1,4 @@
-import { Product } from '@/lib/types';
+  import { Product } from '@/lib/types';
 
 const DEFAULT_PRODUCTS: Product[] = [
   // Mercearia & Grãos

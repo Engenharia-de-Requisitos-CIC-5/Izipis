@@ -24,9 +24,9 @@ export default function SalesHistoryPage() {
 
   const getPaymentIcon = (method: Sale['paymentMethod']) => {
     switch (method) {
-      case 'CARD': return <CreditCard className="w-4 h-4" />;
-      case 'CASH': return <Banknote className="w-4 h-4" />;
-      case 'PIX': return <QrCode className="w-4 h-4" />;
+      case 'card': return <CreditCard className="w-4 h-4" />;
+      case 'money': return <Banknote className="w-4 h-4" />;
+      case 'pix': return <QrCode className="w-4 h-4" />;
       default: return null;
     }
   };

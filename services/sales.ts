@@ -59,10 +59,16 @@ export async function getSalesStats() {
   const totalOrders = sales.length;
   const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   
+  // Categorize by source
+  const ifoodSales = sales.filter(s => s.source === 'IFOOD').length;
+  const localSales = sales.filter(s => s.source === 'LOCAL').length;
+  
   return {
     totalRevenue,
     totalOrders,
     avgTicket,
+    ifoodSales,
+    localSales,
     recentSales: sales.slice(-5).reverse()
   };
 }

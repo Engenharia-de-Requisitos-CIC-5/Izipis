@@ -2,16 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
   Package, 
   ShoppingCart, 
-  BarChart3, 
-  Settings, 
-  ChevronLeft, 
-  BrainCircuit
+  ChevronLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from './Logo';
@@ -20,51 +17,60 @@ const MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
   { icon: Package, label: 'Estoque', href: '/admin/inventory' },
   { icon: ShoppingCart, label: 'Vendas', href: '/admin/sales' },
-  { icon: BarChart3, label: 'Relatórios', href: '/admin/reports' },
-  { icon: BrainCircuit, label: 'ML Insights', href: '/admin/ml', isNew: true },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-
 
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isCollapsed ? 80 : 260 }}
-      className="h-screen bg-primary border-r border-white/5 flex flex-col relative sticky top-0 shadow-2xl"
+      animate={{ width: isCollapsed ? 80 : 280 }}
+      className="h-screen bg-[#0D3335] border-r border-white/5 flex flex-col sticky top-0 z-50 shadow-2xl transition-all duration-300"
     >
-      <div className="p-6 flex items-center gap-3">
-        <IZIPISLogo variant={isCollapsed ? 'icon' : 'horizontal'} color="monochrome-white" className="transition-all" />
+      {/* Logo Area */}
+      <div className={cn(
+        "h-24 flex items-center transition-all duration-300",
+        isCollapsed ? "justify-center p-0" : "px-8"
+      )}>
+        <IZIPISLogo 
+          variant={isCollapsed ? 'icon' : 'horizontal'} 
+          color="monochrome-white" 
+          className={cn("transition-all duration-300", isCollapsed ? "scale-90" : "scale-100")} 
+        />
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      {/* Navigation */}
+      <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
         {MENU_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.href === '/admin' 
+            ? pathname === '/admin' 
+            : pathname.startsWith(item.href);
           return (
             <Link key={item.href} href={item.href}>
               <div
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all cursor-pointer group relative",
+                  "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all cursor-pointer group relative",
                   isActive 
-                    ? "bg-secondary text-white shadow-xl shadow-black/20" 
-                    : "text-white/60 hover:bg-white/5 hover:text-white"
+                    ? "bg-secondary text-white shadow-lg shadow-black/20" 
+                    : "text-white/40 hover:bg-white/5 hover:text-white"
                 )}
               >
-                <item.icon className={cn("w-5 h-5 min-w-[20px]", isActive ? "text-white" : "text-white/40")} />
+                <item.icon className={cn(
+                  "w-5 h-5 transition-transform duration-300", 
+                  isActive ? "text-white" : "text-white/40 group-hover:scale-110",
+                  isCollapsed && "mx-auto"
+                )} />
+                
                 {!isCollapsed && (
-                  <span className="font-heading font-bold text-sm uppercase tracking-tight">{item.label}</span>
-                )}
-                {!isCollapsed && item.isNew && (
-                  <span className="ml-auto text-[10px] bg-accent text-white px-2 py-0.5 rounded-full font-bold shadow-sm">
-                    NEW
+                  <span className="font-bold text-[13px] uppercase tracking-wider whitespace-nowrap overflow-hidden">
+                    {item.label}
                   </span>
                 )}
                 
                 {isCollapsed && (
-                  <div className="absolute left-20 bg-secondary text-white px-3 py-1.5 rounded-lg text-xs invisible group-hover:visible whitespace-nowrap z-50 shadow-xl font-bold uppercase tracking-widest">
+                  <div className="absolute left-20 bg-primary text-white px-4 py-2 rounded-xl text-xs opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-200 whitespace-nowrap z-[100] shadow-2xl border border-white/10 font-bold uppercase tracking-widest">
                     {item.label}
                   </div>
                 )}
@@ -74,16 +80,33 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 relative">
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3.5 top-10 w-7 h-7 bg-white border border-primary/10 rounded-full flex items-center justify-center text-primary hover:bg-secondary hover:text-white transition-all shadow-xl z-[60] group"
+      >
+        <ChevronLeft className={cn(
+          "w-4 h-4 transition-transform duration-500", 
+          isCollapsed ? "rotate-180" : "rotate-0",
+          "group-hover:scale-125"
+        )} />
+      </button>
 
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-24 w-7 h-7 bg-white border border-primary/10 rounded-full flex items-center justify-center text-primary hover:bg-secondary hover:text-white transition-all shadow-lg z-50"
-        >
-          <ChevronLeft className={cn("w-4 h-4 transition-transform", isCollapsed && "rotate-180")} />
-        </button>
-      </div>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
     </motion.aside>
   );
 }
-

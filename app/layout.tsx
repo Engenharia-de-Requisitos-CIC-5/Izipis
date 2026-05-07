@@ -15,7 +15,7 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "Izipis",
+  title: "Pedrinho 2",
   description: "Sistema de Gestão de Mercado",
   icons: {
     icon: "/icon.svg",

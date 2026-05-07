@@ -16,7 +16,7 @@ export const IZIPISLogo: React.FC<LogoProps> = ({
 }) => {
   const sizes = {
     icon: 'w-10 h-10',
-    horizontal: 'h-10 w-auto min-w-[120px]',
+    horizontal: 'h-8 w-auto min-w-[100px]',
     principal: 'w-24 h-24'
   };
 

@@ -1,6 +1,9 @@
   import { Product } from '@/lib/types';
 
 const DEFAULT_PRODUCTS: Product[] = [
+  { id: 'p22', name: 'Pão Francês (Kg)', description: 'Sempre quentinho e crocante.', price: 10.00, category: 'Padaria', stock: 100, sku: '78960001' },
+  { id: 'p18', name: 'Papel Higiênico 10 Reais', description: 'Papel Higiênico Premium de 10 reais.', price: 10.00, category: 'Limpeza', stock: 50, sku: '78940004' },
+  
   // Mercearia & Grãos
   { id: 'p1', name: 'Arroz Integral 1kg', description: 'Arroz integral de alta qualidade.', price: 8.50, category: 'Mercearia', stock: 45, sku: '78910001' },
   { id: 'p2', name: 'Feijão Carioca 1kg', description: 'Feijão carioca selecionado.', price: 7.20, category: 'Mercearia', stock: 30, sku: '78910002' },
@@ -36,7 +39,6 @@ const DEFAULT_PRODUCTS: Product[] = [
   { id: 'p15', name: 'Detergente Líquido 500ml', description: 'Detergente neutro para louças.', price: 2.80, category: 'Limpeza', stock: 100, sku: '78940001' },
   { id: 'p16', name: 'Sabão em Pó 1kg', description: 'Lava roupas ultra performance.', price: 14.90, category: 'Limpeza', stock: 45, sku: '78940002' },
   { id: 'p17', name: 'Desinfetante Lavanda 1L', description: 'Desinfetante multiuso perfumado.', price: 8.20, category: 'Limpeza', stock: 60, sku: '78940003' },
-  { id: 'p18', name: 'Papel Higiênico (12 rolos)', description: 'Folha dupla de alta maciez.', price: 22.50, category: 'Limpeza', stock: 30, sku: '78940004' },
   { id: 'p36', name: 'Amaciante de Roupas 2L', description: 'Perfume duradouro.', price: 18.50, category: 'Limpeza', stock: 25, sku: '78940005' },
   { id: 'p37', name: 'Água Sanitária 1L', description: 'Cloro ativo.', price: 4.50, category: 'Limpeza', stock: 50, sku: '78940006' },
   { id: 'p38', name: 'Esponja de Aço (3 unid)', description: 'Limpeza pesada.', price: 3.90, category: 'Limpeza', stock: 40, sku: '78940007' },
@@ -58,10 +60,9 @@ const DEFAULT_PRODUCTS: Product[] = [
   { id: 'p45', name: 'Alface Crespa (Unid)', description: 'Folhas frescas.', price: 3.50, category: 'Hortifruti', stock: 15, sku: '78970006' },
 
   // Padaria
-  { id: 'p22', name: 'Pão de Forma Tradicional', description: 'Pão fatiado macio.', price: 7.90, category: 'Padaria', stock: 50, sku: '78960001' },
-  { id: 'p46', name: 'Pão Francês (Kg)', description: 'Sempre quentinho.', price: 18.50, category: 'Padaria', stock: 10, sku: '78960002' },
+  { id: 'p46', name: 'Pão de Queijo (500g)', description: 'Congelado ou assado.', price: 12.90, category: 'Padaria', stock: 20, sku: '78960002' },
   { id: 'p47', name: 'Bolo de Cenoura', description: 'Caseiro com cobertura.', price: 15.00, category: 'Padaria', stock: 5, sku: '78960003' },
-  { id: 'p48', name: 'Pão de Queijo (500g)', description: 'Congelado ou assado.', price: 12.90, category: 'Padaria', stock: 20, sku: '78960004' },
+  { id: 'p48', name: 'Pão de Forma Tradicional', description: 'Pão fatiado macio.', price: 7.90, category: 'Padaria', stock: 50, sku: '78960004' },
 
   // Açougue & Congelados
   { id: 'p49', name: 'Peito de Frango (Kg)', description: 'Resfriado.', price: 19.90, category: 'Açougue', stock: 15, sku: '78980001' },

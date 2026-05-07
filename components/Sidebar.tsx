@@ -3,12 +3,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
   Package, 
   ShoppingCart, 
-  ChevronLeft
+  ChevronLeft,
+  Menu,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from './Logo';
@@ -22,13 +24,50 @@ const MENU_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: isCollapsed ? 80 : 280 }}
-      className="h-screen bg-[#0D3335] border-r border-white/5 flex flex-col sticky top-0 z-50 shadow-2xl transition-all duration-300"
-    >
+    <>
+      {/* Mobile Toggle Button */}
+      <button 
+        onClick={() => setIsMobileOpen(true)}
+        className="lg:hidden fixed top-6 left-6 z-[60] p-3 bg-white border border-primary/10 rounded-xl shadow-xl text-primary"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.aside
+        initial={false}
+        animate={{ 
+          width: isCollapsed ? 80 : 280,
+          x: isMobileOpen ? 0 : (typeof window !== 'undefined' && window.innerWidth < 1024 ? -280 : 0)
+        }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className={cn(
+          "h-screen bg-primary border-r border-white/5 flex flex-col fixed lg:sticky top-0 z-[80] lg:z-50 shadow-2xl transition-all duration-300",
+          !isMobileOpen && "hidden lg:flex"
+        )}
+      >
+        {/* Mobile Close Button */}
+        <button 
+          onClick={() => setIsMobileOpen(false)}
+          className="lg:hidden absolute top-6 right-6 p-2 text-white/40 hover:text-white"
+        >
+          <X className="w-6 h-6" />
+        </button>
       {/* Logo Area */}
       <div className={cn(
         "h-24 flex items-center transition-all duration-300",
@@ -53,7 +92,7 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all cursor-pointer group relative",
                   isActive 
-                    ? "bg-secondary text-white shadow-lg shadow-black/20" 
+                    ? "bg-white/10 text-white shadow-sm" 
                     : "text-white/40 hover:bg-white/5 hover:text-white"
                 )}
               >
@@ -107,6 +146,7 @@ export default function Sidebar() {
           background: rgba(255, 255, 255, 0.2);
         }
       `}</style>
-    </motion.aside>
+      </motion.aside>
+    </>
   );
 }

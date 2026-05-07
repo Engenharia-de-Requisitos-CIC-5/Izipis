@@ -37,6 +37,8 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
 
   const loadStats = async () => {
     const products = await getProducts();
@@ -63,22 +65,40 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const addLog = (message: string) => {
+    setSyncLogs(prev => [message, ...prev].slice(0, 5));
+  };
+
   const simulateIfoodPolling = async () => {
     setIsPolling(true);
+    addLog("Iniciando handshake com iFood API...");
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    addLog("Autenticando Merchant ID: IZIPIS-MAIN-01...");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    addLog("Consumindo fila de eventos...");
     const newOrders = await pollNewOrders();
     
     if (newOrders.length > 0) {
-      for (const order of newOrders) {
-        await integrateIfoodOrder(order);
-      }
-      setNotification(`Novo pedido iFood #${newOrders[0].displayId} integrado com sucesso!`);
-      await loadStats();
+      addLog(`${newOrders.length} novos pedidos detectados!`);
+      setPendingOrders(prev => [...newOrders, ...prev]);
+      setNotification(`Novo pedido iFood #${newOrders[0].displayId} aguardando revisão.`);
       setTimeout(() => setNotification(null), 5000);
     } else {
-      setNotification("Nenhum pedido novo no iFood no momento.");
+      addLog("Nenhum evento pendente na fila.");
+      setNotification("Sincronização concluída: tudo em dia.");
       setTimeout(() => setNotification(null), 3000);
     }
     setIsPolling(false);
+  };
+
+  const handleIntegrateOrder = async (order: any) => {
+    addLog(`Integrando pedido #${order.displayId}...`);
+    await integrateIfoodOrder(order);
+    setPendingOrders(prev => prev.filter(o => o.id !== order.id));
+    addLog(`Pedido #${order.displayId} integrado ao PDV.`);
+    await loadStats();
   };
 
   const statCards = [
@@ -96,7 +116,7 @@ export default function AdminDashboard() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-secondary text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-bold text-sm"
+            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-success text-white px-6 py-3 rounded-2xl flex items-center gap-3 font-bold text-sm border border-success/20"
           >
             <CheckCircle2 className="w-5 h-5" />
             {notification}
@@ -104,17 +124,17 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-primary uppercase">Console de Comando</h1>
-          <p className="text-foreground/60 font-medium">Gestão integrada: Balcão + iFood + Estoque.</p>
+          <h1 className="text-xl md:text-3xl font-extrabold tracking-tight text-primary uppercase">Console de Comando</h1>
+          <p className="text-foreground/60 font-medium text-xs md:text-sm">Gestão integrada: Balcão + iFood + Estoque.</p>
         </div>
         <div className="flex gap-3">
           <Button 
             variant="outline" 
             onClick={simulateIfoodPolling} 
             disabled={isPolling}
-            className="h-12 px-6 rounded-xl border-primary/10 gap-2 font-bold text-xs uppercase tracking-widest hover:bg-primary/5"
+            className="h-10 px-4 rounded-xl border-primary/10 gap-2 font-bold text-[10px] uppercase tracking-widest hover:bg-primary/5"
           >
             <RefreshCw className={cn("w-4 h-4 text-secondary", isPolling && "animate-spin")} />
             {isPolling ? 'Verificando iFood...' : 'Sincronizar iFood'}
@@ -122,7 +142,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
             <StatCard 
@@ -168,19 +188,88 @@ export default function AdminDashboard() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="flex flex-col border-secondary/20 bg-secondary/[0.02]">
+          <Card className="border-primary/20 bg-primary/[0.02] overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="flex items-center gap-2">
+                <RefreshCw className={cn("w-4 h-4 text-primary", isPolling && "animate-spin")} />
+                <h3 className="font-bold text-sm">Log de Sincronia</h3>
+              </div>
+              <Badge variant="outline" className="text-[9px] uppercase border-primary/20">iFood Real-time</Badge>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {syncLogs.length > 0 ? (
+                syncLogs.map((log, i) => (
+                  <motion.div 
+                    key={i} 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-2 text-[10px] font-mono text-primary/60"
+                  >
+                    <span className="text-primary/30">[{new Date().toLocaleTimeString('pt-BR', { hour12: false })}]</span>
+                    <span>{log}</span>
+                  </motion.div>
+                ))
+              ) : (
+                <p className="text-[10px] text-primary/30 font-mono italic">Aguardando início do polling...</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {pendingOrders.length > 0 && (
+            <Card className="border-secondary/40 bg-secondary/[0.03]">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-secondary" />
+                    <h3 className="font-bold text-sm text-secondary uppercase">Pedidos Pendentes</h3>
+                  </div>
+                  <Badge className="bg-secondary text-white">{pendingOrders.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pendingOrders.map((order) => (
+                  <div key={order.id} className="p-4 rounded-xl bg-white border border-secondary/20">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="text-[10px] font-black text-primary/40 uppercase">#{order.displayId}</p>
+                        <p className="font-bold text-xs">{order.customer.name}</p>
+                      </div>
+                      <p className="font-black text-sm text-secondary">{formatCurrency(order.total.orderAmount)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => handleIntegrateOrder(order)}
+                        className="flex-1 h-8 text-[10px] bg-primary hover:bg-primary-dark font-black uppercase tracking-widest"
+                      >
+                        Aceitar
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="h-8 w-8 p-0 border-primary/10"
+                        onClick={() => setPendingOrders(prev => prev.filter(o => o.id !== order.id))}
+                      >
+                        <X className="w-4 h-4 text-primary/40" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="flex flex-col border-primary/10 bg-primary/[0.01]">
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-secondary" />
                 <h3 className="font-bold text-sm">Status iFood</h3>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-                <span className="text-[10px] font-black text-secondary uppercase">Online</span>
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <span className="text-[10px] font-black text-success uppercase">Online</span>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="p-4 rounded-2xl bg-white border border-secondary/10 shadow-sm">
+              <div className="p-4 rounded-2xl bg-white border border-secondary/10">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[10px] font-bold text-primary/40 uppercase">Merchant ID</span>
                   <span className="text-[10px] font-mono font-bold text-primary">IZIPIS-MAIN-01</span>

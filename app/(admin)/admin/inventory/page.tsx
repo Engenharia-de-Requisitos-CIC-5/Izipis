@@ -119,7 +119,7 @@ export default function InventoryPage() {
           <h1 className="text-4xl font-extrabold tracking-tight text-primary">Estoque e Inventário</h1>
           <p className="text-foreground/60 font-medium">Controle total sobre o seu catálogo de produtos.</p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="px-8 h-14 rounded-2xl gap-2 shadow-xl shadow-primary/20">
+        <Button onClick={() => handleOpenModal()} className="px-8 h-14 rounded-2xl gap-2 border-primary/5">
           <Plus className="w-5 h-5" /> 
           Novo Produto
         </Button>
@@ -128,13 +128,13 @@ export default function InventoryPage() {
       <Card className="overflow-hidden border-primary/5">
         <div className="p-6 border-b border-primary/5 flex flex-col md:flex-row gap-4 items-center bg-[#F8FAFC]">
           <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/30 w-5 h-5 group-focus-within:text-secondary transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/30 w-5 h-5 group-focus-within:text-primary transition-colors" />
             <input 
               type="text" 
               placeholder="Pesquisar por nome, SKU ou categoria..." 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              className="w-full bg-white border border-primary/10 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all text-sm" 
+              className="w-full bg-white border border-primary/10 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" 
             />
           </div>
           <div className="flex gap-2 w-full md:w-auto">
@@ -231,7 +231,7 @@ export default function InventoryPage() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden"
+              className="w-full max-w-2xl bg-white rounded-[2.5rem] relative z-10 overflow-hidden border border-primary/10"
             >
               <div className="p-8 border-b border-primary/5 flex items-center justify-between bg-[#F8FAFC]">
                 <div className="flex items-center gap-4">
@@ -262,7 +262,7 @@ export default function InventoryPage() {
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         placeholder="Ex: Arroz Integral 5kg"
-                        className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-secondary focus:bg-white transition-all outline-none"
+                        className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                       />
                     </div>
                   </div>
@@ -277,7 +277,7 @@ export default function InventoryPage() {
                         value={formData.sku}
                         onChange={(e) => setFormData({...formData, sku: e.target.value})}
                         placeholder="Ex: 78900123"
-                        className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-secondary focus:bg-white transition-all outline-none"
+                        className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                       />
                     </div>
                   </div>
@@ -289,7 +289,7 @@ export default function InventoryPage() {
                       <select 
                         value={formData.category}
                         onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-secondary focus:bg-white transition-all outline-none appearance-none"
+                        className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none appearance-none"
                       >
                         <option>Mercearia</option>
                         <option>Laticínios</option>
@@ -318,7 +318,7 @@ export default function InventoryPage() {
                           value={formData.price}
                           onChange={(e) => setFormData({...formData, price: e.target.value})}
                           placeholder="0,00"
-                          className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-secondary focus:bg-white transition-all outline-none"
+                          className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                         />
                       </div>
                     </div>
@@ -332,7 +332,7 @@ export default function InventoryPage() {
                           value={formData.stock}
                           onChange={(e) => setFormData({...formData, stock: e.target.value})}
                           placeholder="0"
-                          className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-secondary focus:bg-white transition-all outline-none"
+                          className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                         />
                       </div>
                     </div>
@@ -348,7 +348,7 @@ export default function InventoryPage() {
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                       placeholder="Detalhes adicionais do produto..."
-                      className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-secondary focus:bg-white transition-all outline-none resize-none"
+                      className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-4 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none resize-none"
                     />
                   </div>
                 </div>
@@ -357,7 +357,7 @@ export default function InventoryPage() {
                   <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 h-16 rounded-2xl text-primary uppercase font-black tracking-widest">
                     Cancelar
                   </Button>
-                  <Button type="submit" className="flex-[2] py-4 h-16 rounded-2xl bg-secondary hover:bg-secondary/90 text-white shadow-2xl shadow-secondary/20 border-none uppercase font-black tracking-[0.2em]">
+                  <Button type="submit" className="flex-[2] py-4 h-16 rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-none uppercase font-black tracking-[0.2em]">
                     {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
                   </Button>
                 </div>

@@ -38,10 +38,10 @@ export default function SalesHistoryPage() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Histórico de Vendas</h1>
-          <p className="text-muted-foreground">Monitore todas as transações realizadas no PDV.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary uppercase">Registro de Operações</h1>
+          <p className="text-foreground/60 font-medium">Histórico completo de transações e auditoria de caixa.</p>
         </div>
-        <Button variant="secondary"><Download className="w-5 h-5" /> Exportar CSV</Button>
+        <Button variant="secondary" className="h-14 px-8 rounded-2xl gap-3 font-black uppercase tracking-widest text-xs shadow-xl shadow-secondary/10 border-none"><Download className="w-5 h-5" /> Exportar Relatório</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -51,24 +51,28 @@ export default function SalesHistoryPage() {
       </div>
 
       <Card>
-        <div className="p-6 border-b border-border flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <input type="text" placeholder="Buscar por ID da venda..." className="w-full bg-secondary border border-border rounded-lg py-2 pl-10 pr-4 outline-none focus:ring-2 focus:ring-primary transition-all" />
+        <div className="p-6 border-b border-primary/5 flex flex-col md:flex-row gap-4 items-center bg-[#F8FAFC]">
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/30 w-5 h-5 group-focus-within:text-primary transition-colors" />
+            <input 
+              type="text" 
+              placeholder="Pesquisar venda por ID ou cliente..." 
+              className="w-full bg-white border border-primary/10 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+            />
           </div>
-          <Button variant="secondary" size="sm"><Calendar className="w-4 h-4" /> Últimos 7 dias</Button>
+          <Button variant="secondary" className="h-12 px-6 rounded-xl border-primary/10 gap-2 font-bold"><Calendar className="w-4 h-4" /> Últimos 7 dias</Button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-white/5 border-b border-border">
-                <th className="p-4 font-semibold text-sm">ID da Venda</th>
-                <th className="p-4 font-semibold text-sm">Data/Hora</th>
-                <th className="p-4 font-semibold text-sm">Itens</th>
-                <th className="p-4 font-semibold text-sm">Pagamento</th>
-                <th className="p-4 font-semibold text-sm">Total</th>
-                <th className="p-4 font-semibold text-sm text-right">Ações</th>
+              <tr className="bg-[#F8FAFC] border-b border-primary/5">
+                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">ID da Venda</th>
+                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Data/Hora</th>
+                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Qtd. Itens</th>
+                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Pagamento</th>
+                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Total</th>
+                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -76,13 +80,24 @@ export default function SalesHistoryPage() {
                 <tr><td colSpan={6} className="p-8 text-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
               ) : sales.length > 0 ? (
                 sales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-white/5 transition-colors group">
-                    <td className="p-4 text-sm font-mono">{sale.id}</td>
-                    <td className="p-4 text-sm">{new Date(sale.timestamp).toLocaleString('pt-BR')}</td>
-                    <td className="p-4 text-sm">{sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'}</td>
-                    <td className="p-4"><div className="flex items-center gap-2 text-sm">{getPaymentIcon(sale.paymentMethod)}<span className="capitalize">{sale.paymentMethod.toLowerCase()}</span></div></td>
-                    <td className="p-4 font-bold text-accent">{formatCurrency(sale.total)}</td>
-                    <td className="p-4 text-right"><Button variant="ghost" size="icon"><ExternalLink className="w-4 h-4" /></Button></td>
+                  <tr key={sale.id} className="hover:bg-primary/5 transition-all group">
+                    <td className="p-5 text-xs font-mono font-bold text-primary/60">{sale.id}</td>
+                    <td className="p-5 text-sm font-medium">{new Date(sale.timestamp).toLocaleString('pt-BR')}</td>
+                    <td className="p-5">
+                      <Badge variant="outline" className="rounded-lg border-primary/10 bg-primary/5 text-[10px] font-black uppercase">{sale.items.length} ITENS</Badge>
+                    </td>
+                    <td className="p-5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-primary">
+                        <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary">
+                          {getPaymentIcon(sale.paymentMethod)}
+                        </div>
+                        <span className="capitalize">{sale.paymentMethod.toLowerCase()}</span>
+                      </div>
+                    </td>
+                    <td className="p-5 font-black text-primary">{formatCurrency(sale.total)}</td>
+                    <td className="p-5 text-right">
+                      <Button variant="ghost" size="icon" className="w-9 h-9 rounded-xl hover:bg-primary hover:text-white transition-all"><ExternalLink className="w-4 h-4" /></Button>
+                    </td>
                   </tr>
                 ))
               ) : (

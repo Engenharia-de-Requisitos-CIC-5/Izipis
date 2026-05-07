@@ -41,21 +41,46 @@ export async function authenticateIfood(): Promise<string> {
   return 'simulated_access_token_' + Math.random().toString(36).substring(7);
 }
 
+const MOCK_CLIENTS = [
+  { id: 'c1', name: 'Maria Silva', document: '123.456.789-00' },
+  { id: 'c2', name: 'João Pereira', document: '987.654.321-11' },
+  { id: 'c3', name: 'Ana Oliveira', document: '456.789.123-22' },
+  { id: 'c4', name: 'Pedro Santos', document: '321.654.987-33' }
+];
+
 /**
  * Simula a busca de novos eventos de pedidos (Polling).
- * O iFood utiliza um sistema de polling onde você consome eventos e depois faz o 'acknowledge'.
  */
 export async function pollNewOrders(): Promise<IfoodOrder[]> {
   // Simula um delay de rede
   await new Promise(resolve => setTimeout(resolve, 1500));
 
-  // Simula a chance de chegar um novo pedido (30% de chance para a demo)
-  if (Math.random() > 0.7) {
+  // 40% de chance de chegar um novo pedido para a demo
+  if (Math.random() > 0.6) {
     const products = await getProducts();
-    const randomProduct = products[Math.floor(Math.random() * products.length)];
+    const client = MOCK_CLIENTS[Math.floor(Math.random() * MOCK_CLIENTS.length)];
+    
+    // Escolhe de 1 a 3 produtos aleatórios
+    const numItems = Math.floor(Math.random() * 3) + 1;
+    const selectedItems = [];
+    let subTotal = 0;
 
-    const subTotal = randomProduct.price * 2;
-    const deliveryFee = 5.90;
+    for (let i = 0; i < numItems; i++) {
+      const product = products[Math.floor(Math.random() * products.length)];
+      const qty = Math.floor(Math.random() * 2) + 1;
+      const totalItem = product.price * qty;
+      
+      selectedItems.push({
+        id: product.id,
+        name: product.name,
+        quantity: qty,
+        unitPrice: product.price,
+        totalPrice: totalItem
+      });
+      subTotal += totalItem;
+    }
+
+    const deliveryFee = 7.90;
 
     return [{
       id: `ifood-${Math.random().toString(36).substring(7)}`,
@@ -70,17 +95,8 @@ export async function pollNewOrders(): Promise<IfoodOrder[]> {
         benefits: 0,
         orderAmount: subTotal + deliveryFee
       },
-      items: [{
-        id: randomProduct.id,
-        name: randomProduct.name,
-        quantity: 2,
-        unitPrice: randomProduct.price,
-        totalPrice: subTotal
-      }],
-      customer: {
-        id: 'c-123',
-        name: 'Cliente iFood Simulado',
-      }
+      items: selectedItems,
+      customer: client
     }];
   }
 

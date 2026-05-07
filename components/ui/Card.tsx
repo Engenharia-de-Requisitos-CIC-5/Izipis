@@ -9,9 +9,9 @@ export function Card({ className, variant = 'glass', ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl transition-all',
-        variant === 'glass' && 'glass',
-        variant === 'outline' && 'border border-border bg-transparent',
+        'rounded-[2.5rem] transition-all duration-300',
+        variant === 'glass' && 'bg-white border border-primary/10',
+        variant === 'outline' && 'border border-primary/10 bg-transparent',
         variant === 'flat' && 'bg-primary/5',
         className
       )}
@@ -21,13 +21,13 @@ export function Card({ className, variant = 'glass', ...props }: CardProps) {
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-6 border-b border-border', className)} {...props} />;
+  return <div className={cn('p-8 border-b border-primary/5', className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-6', className)} {...props} />;
+  return <div className={cn('p-8', className)} {...props} />;
 }
 
 export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-6 border-t border-border', className)} {...props} />;
+  return <div className={cn('p-8 border-t border-primary/5', className)} {...props} />;
 }

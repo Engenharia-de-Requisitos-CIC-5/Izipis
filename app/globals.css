@@ -1,20 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #0D3335;
+  --color-primary: #1850BF;
+  --color-primary-light: #4A7CEB;
+  --color-primary-dark: #0D3B94;
   --color-primary-foreground: #FFFFFF;
-  --color-secondary: #1A5F60;
+
+  --color-secondary: #DC0807;
+  --color-secondary-light: #FF4D4D;
+  --color-secondary-dark: #A10605;
   --color-secondary-foreground: #FFFFFF;
-  --color-accent: #E87A5D;
+
+  --color-accent: #DC0807;
   --color-accent-foreground: #FFFFFF;
-  --color-danger: #BC4749;
+
+  --color-danger: #DC0807;
   --color-danger-foreground: #FFFFFF;
-  --color-background: #F9F7F2;
-  --color-foreground: #2D2D2D;
+
+  --color-success: #10B981;
+  --color-success-foreground: #FFFFFF;
+
+  --color-background: #FFFFFF;
+  --color-foreground: #262626;
   
-  --color-border: #0D333515;
-  --color-input: #0D333508;
-  --color-ring: #1A5F60;
+  --color-border: rgba(24, 80, 191, 0.1);
+  --color-input: rgba(24, 80, 191, 0.05);
+  --color-ring: rgba(24, 80, 191, 0.2);
 
   --font-sans: var(--font-roboto), ui-sans-serif, system-ui;
   --font-heading: var(--font-montserrat), ui-sans-serif, system-ui;
@@ -44,5 +55,5 @@
 }
 
 .card-gradient {
-  background: linear-gradient(135deg, #0D3335, #1A5F60);
+  background: linear-gradient(135deg, #1850BF, #0D3B94);
 }

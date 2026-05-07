@@ -38,8 +38,8 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-20 bg-white/50 backdrop-blur-md border-b border-primary/5 flex items-center justify-between px-8 sticky top-0 z-40">
-      <div className="flex items-center gap-4 flex-1 max-w-xl">
+    <header className="h-20 bg-white/50 backdrop-blur-md border-b border-primary/5 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
+      <div className="flex items-center gap-4 flex-1 max-w-xl pl-16 lg:pl-0">
         <div className="relative w-full group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40 group-focus-within:text-secondary transition-colors" />
           <input 
@@ -77,7 +77,7 @@ export default function Topbar() {
               <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-white shadow-lg shadow-secondary/20">
                 <User className="w-5 h-5" />
               </div>
-              <div className="flex flex-col">
+              <div className="hidden sm:flex flex-col">
                 <span className="text-xs font-bold text-primary leading-tight">Admin User</span>
                 <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Administrador</span>
               </div>

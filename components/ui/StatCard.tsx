@@ -1,5 +1,6 @@
 import React from 'react';
 import { LucideIcon, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Card, CardContent } from './Card';
 import { cn } from '@/lib/utils';
 
@@ -21,27 +22,36 @@ export function StatCard({
   iconColor = 'text-primary'
 }: StatCardProps) {
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <div className="flex justify-between items-start">
-          <div className={cn("p-2 rounded-xl bg-primary/5", iconColor)}>
-            <Icon className="w-6 h-6" />
-          </div>
-          {trend && (
+    <motion.div
+      whileHover={{ y: -5, scale: 1.02 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Card className="h-full group hover:border-primary/30 border-primary/10 transition-all">
+        <CardContent className="space-y-4">
+          <div className="flex justify-between items-start">
             <div className={cn(
-              "flex items-center text-xs font-bold px-2 py-1 rounded-full",
-              isPositive ? "bg-accent/10 text-accent" : "bg-danger/10 text-danger"
+              "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
+              "bg-primary/5 group-hover:bg-primary group-hover:text-white",
+              iconColor
             )}>
-              {trend}
-              {isPositive ? <ArrowUpRight className="w-3 h-3 ml-1" /> : <ArrowDownRight className="w-3 h-3 ml-1" />}
+              <Icon className="w-6 h-6 transition-transform group-hover:scale-110" />
             </div>
-          )}
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
+            {trend && (
+              <div className={cn(
+                "flex items-center text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest",
+                isPositive ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+              )}>
+                {trend}
+                {isPositive ? <ArrowUpRight className="w-3.5 h-3.5 ml-1" /> : <ArrowDownRight className="w-3.5 h-3.5 ml-1" />}
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] mb-1">{label}</p>
+            <p className="text-3xl font-black text-primary tracking-tight leading-none tabular-nums">{value}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

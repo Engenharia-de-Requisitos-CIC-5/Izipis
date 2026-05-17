@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1850BF;
+  --color-primary-light: #4A7CEB;
+  --color-primary-dark: #0D3B94;
+  --color-primary-foreground: #FFFFFF;
+
+  --color-secondary: #DC0807;
+  --color-secondary-light: #FF4D4D;
+  --color-secondary-dark: #A10605;
+  --color-secondary-foreground: #FFFFFF;
+
+  --color-accent: #DC0807;
+  --color-accent-foreground: #FFFFFF;
+
+  --color-danger: #DC0807;
+  --color-danger-foreground: #FFFFFF;
+
+  --color-success: #10B981;
+  --color-success-foreground: #FFFFFF;
+
+  --color-background: #FFFFFF;
+  --color-foreground: #262626;
+  
+  --color-border: rgba(24, 80, 191, 0.1);
+  --color-input: rgba(24, 80, 191, 0.05);
+  --color-ring: rgba(24, 80, 191, 0.2);
+
+  --font-sans: var(--font-roboto), ui-sans-serif, system-ui;
+  --font-heading: var(--font-montserrat), ui-sans-serif, system-ui;
+
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  button, [role="button"], .cursor-pointer {
+    cursor: pointer !important;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold;
+  }
+}
+
+.glass {
+  @apply bg-white/60 backdrop-blur-xl border border-primary/5 shadow-2xl shadow-primary/5;
+}
+
+.card-gradient {
+  background: linear-gradient(135deg, #1850BF, #0D3B94);
+}

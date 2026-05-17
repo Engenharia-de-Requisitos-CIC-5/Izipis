@@ -21,7 +21,13 @@ import {
   Printer,
   Lock,
   Unlock,
-  Wallet
+  Wallet,
+  Plus,
+  Minus,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  ArrowRightLeft
 } from 'lucide-react';
 import { getProducts } from '@/services/products';
 import { createSale, getSales } from '@/services/sales';
@@ -40,6 +46,13 @@ interface IFoodOrder {
   items: { name: string; quantity: number; price: number; sku: string }[];
   total: number;
   status: 'PENDING' | 'PREPARING' | 'READY';
+}
+
+interface DrawerMovement {
+  type: 'sangria' | 'suprimento';
+  amount: number;
+  reason: string;
+  time: string;
 }
 
 export default function PDVPage() {
@@ -65,9 +78,15 @@ export default function PDVPage() {
   const [isOffline, setIsOffline] = useState(false);
   const [logs, setLogs] = useState<string[]>(['[SISTEMA] Aguardando abertura do caixa...']);
   
-  // Estados do Fechamento de Caixa
+  // Estados do Fechamento de Caixa e Sangria/Suprimento
   const [showCloseRegister, setShowCloseRegister] = useState(false);
   const [registerStats, setRegisterStats] = useState({ total: 0, money: 0, card: 0, pix: 0, count: 0, initialCash: 0 });
+  const [drawerMovements, setDrawerMovements] = useState<DrawerMovement[]>([]);
+  
+  const [showDrawerModal, setShowDrawerModal] = useState(false);
+  const [drawerForm, setDrawerForm] = useState<{type: 'sangria'|'suprimento', amount: string, reason: string}>({
+    type: 'sangria', amount: '', reason: ''
+  });
 
   const [ifoodOrders, setIfoodOrders] = useState<IFoodOrder[]>([
     {
@@ -105,33 +124,30 @@ export default function PDVPage() {
     load();
   }, []);
 
-  // Foca no input após abrir o caixa
   useEffect(() => {
-    if (isRegisterOpen) {
+    if (isRegisterOpen && !showDrawerModal && !showCloseRegister) {
       searchInputRef.current?.focus();
     }
-  }, [isRegisterOpen]);
+  }, [isRegisterOpen, showDrawerModal, showCloseRegister]);
 
   // =========================================================================
   // ATALHOS DE TECLADO GLOBAIS
   // =========================================================================
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Bloqueia os atalhos se o caixa estiver fechado!
       if (!isRegisterOpen) return;
 
-      if (e.key === 'F1') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      if (e.key === 'F2') {
-        e.preventDefault();
-        if (cart.length > 0 && !isCheckingOut) handleCheckout();
-      }
+      if (e.key === 'F1') { e.preventDefault(); searchInputRef.current?.focus(); }
+      if (e.key === 'F2') { e.preventDefault(); if (cart.length > 0 && !isCheckingOut) handleCheckout(); }
       if (e.key === 'F3') { e.preventDefault(); setPaymentMethod('money'); }
       if (e.key === 'F4') { e.preventDefault(); setPaymentMethod('card'); }
       if (e.key === 'F5') { e.preventDefault(); setPaymentMethod('pix'); }
       
+      if (e.key === 'F7') {
+        e.preventDefault();
+        setShowDrawerModal(true);
+      }
+
       if (e.key === 'F8') {
         e.preventDefault();
         if (selectedCartItemId) {
@@ -167,14 +183,15 @@ export default function PDVPage() {
         if (showSuccess) setShowSuccess(false);
         if (isScannerOpen) setIsScannerOpen(false);
         if (showCloseRegister) setShowCloseRegister(false);
+        if (showDrawerModal) setShowDrawerModal(false);
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isRegisterOpen, cart, selectedCartItemId, paymentMethod, isCheckingOut, showSuccess, isScannerOpen, showCloseRegister]);
+  }, [isRegisterOpen, cart, selectedCartItemId, paymentMethod, isCheckingOut, showSuccess, isScannerOpen, showCloseRegister, showDrawerModal]);
 
   // =========================================================================
-  // FUNÇÕES CORE DO PDV
+  // FUNÇÕES CORE DO PDV E MOVIMENTAÇÃO DE GAVETA
   // =========================================================================
   const handleOpenRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +200,25 @@ export default function PDVPage() {
     setRegisterStats(prev => ({ ...prev, initialCash: amount }));
     setIsRegisterOpen(true);
     addLog(`CAIXA ABERTO. Fundo de troco registrado: R$ ${amount.toFixed(2)}`);
+  };
+
+  const handleDrawerMovementSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(drawerForm.amount.replace(',', '.')) || 0;
+    if (amount <= 0) return alert('Insira um valor válido maior que zero.');
+
+    const movement: DrawerMovement = {
+      type: drawerForm.type,
+      amount: amount,
+      reason: drawerForm.reason || 'Não informada',
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setDrawerMovements(prev => [...prev, movement]);
+    setShowDrawerModal(false);
+    setDrawerForm({ type: 'sangria', amount: '', reason: '' });
+    
+    addLog(`GAVETA: ${movement.type === 'sangria' ? 'Sangria (Saída)' : 'Suprimento (Entrada)'} de R$ ${amount.toFixed(2)} - Motivo: ${movement.reason}`);
   };
 
   const handleAddToCart = (product: Product) => {
@@ -249,8 +285,44 @@ export default function PDVPage() {
     }
   };
 
+  const handleProcessIfoodOrder = async (orderId: string) => {
+    const order = ifoodOrders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (order.status === 'PENDING') {
+      setIfoodOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'PREPARING' } : o));
+      addLog(`iFood: Pedido ${orderId} aceito e em preparo.`);
+    } else if (order.status === 'PREPARING') {
+      try {
+        const saleItems = order.items.map(ifoodItem => {
+          const realProduct = products.find(p => p.sku === ifoodItem.sku);
+          return {
+            productId: realProduct ? realProduct.id : `ifood_mock_${ifoodItem.sku}`,
+            name: ifoodItem.name,
+            quantity: ifoodItem.quantity,
+            price: ifoodItem.price
+          };
+        });
+
+        await createSale({
+          items: saleItems,
+          total: order.total,
+          paymentMethod: 'pix',
+          source: 'IFOOD'
+        });
+
+        setIfoodOrders(prev => prev.filter(o => o.id !== orderId));
+        const updatedProducts = await getProducts();
+        setProducts(updatedProducts);
+        addLog(`iFood: Pedido ${orderId} finalizado. Estoque e Faturamento Atualizados!`);
+      } catch (error) {
+        addLog(`Erro ao registrar venda iFood no sistema.`);
+      }
+    }
+  };
+
   // =========================================================================
-  // FECHAMENTO DE CAIXA E IMPRESSÃO (REDUÇÃO Z & CUPOM)
+  // FECHAMENTO DE CAIXA (CÁLCULO MATEMÁTICO AVANÇADO)
   // =========================================================================
   const handleOpenCloseRegister = async () => {
     const allSales = await getSales();
@@ -274,8 +346,13 @@ export default function PDVPage() {
     addLog('Auditoria de Caixa (Redução Z) solicitada.');
   };
 
+  const getTotalSangria = () => drawerMovements.filter(m => m.type === 'sangria').reduce((acc, m) => acc + m.amount, 0);
+  const getTotalSuprimento = () => drawerMovements.filter(m => m.type === 'suprimento').reduce((acc, m) => acc + m.amount, 0);
+
   const printZReport = () => {
-    const totalInDrawer = registerStats.initialCash + registerStats.money;
+    const tSangria = getTotalSangria();
+    const tSuprimento = getTotalSuprimento();
+    const totalInDrawer = registerStats.initialCash + registerStats.money + tSuprimento - tSangria;
 
     const reportContent = `
       <html>
@@ -326,21 +403,43 @@ export default function PDVPage() {
         </div>
 
         <div class="divider"></div>
-        <div class="center bold" style="margin-bottom: 10px;">FLUXO DE GAVETA</div>
+        <div class="center bold" style="margin-bottom: 10px;">FLUXO DE GAVETA (ESPÉCIE)</div>
         
         <div class="flex-between">
           <span>Fundo de Caixa (Abertura):</span>
           <span>R$ ${registerStats.initialCash.toFixed(2).replace('.', ',')}</span>
         </div>
         <div class="flex-between">
-          <span>Vendas em Dinheiro:</span>
-          <span>+ R$ ${registerStats.money.toFixed(2).replace('.', ',')}</span>
+          <span>Vendas em Dinheiro (+):</span>
+          <span>R$ ${registerStats.money.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="flex-between">
+          <span>Suprimentos/Entradas (+):</span>
+          <span>R$ ${tSuprimento.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="flex-between">
+          <span>Sangrias/Saídas (-):</span>
+          <span>R$ ${tSangria.toFixed(2).replace('.', ',')}</span>
         </div>
         <div class="divider"></div>
         <div class="flex-between bold" style="font-size: 14px;">
           <span>TOTAL NA GAVETA:</span>
           <span>R$ ${totalInDrawer.toFixed(2).replace('.', ',')}</span>
         </div>
+
+        ${drawerMovements.length > 0 ? `
+          <div class="divider"></div>
+          <div class="center bold" style="margin-bottom: 10px;">DETALHAMENTO DE MOVIMENTOS</div>
+          ${drawerMovements.map(m => `
+            <div style="margin-bottom: 5px;">
+              <div class="flex-between">
+                <span>${m.time} - ${m.type === 'sangria' ? 'SANGRIA' : 'SUPRIMENTO'}</span>
+                <span>R$ ${m.amount.toFixed(2).replace('.', ',')}</span>
+              </div>
+              <div style="font-size: 10px; color: #555;">Motivo: ${m.reason}</div>
+            </div>
+          `).join('')}
+        ` : ''}
 
         <div class="divider"></div>
         <div class="center" style="margin-top: 30px;">
@@ -362,9 +461,6 @@ export default function PDVPage() {
       printWindow.document.close();
       setShowCloseRegister(false);
       addLog('Relatório de Redução Z impresso com sucesso.');
-      // Opcional: Se quiser que o caixa trave e exija nova abertura após o fechamento:
-      // setIsRegisterOpen(false); 
-      // setInitialCashInput('');
     }
   };
 
@@ -444,19 +540,6 @@ export default function PDVPage() {
     if (printWindow) {
       printWindow.document.write(receiptContent);
       printWindow.document.close();
-    }
-  };
-
-  const handleProcessIfoodOrder = (orderId: string) => {
-    const order = ifoodOrders.find(o => o.id === orderId);
-    if (!order) return;
-
-    if (order.status === 'PENDING') {
-      setIfoodOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'PREPARING' } : o));
-      addLog(`iFood: Pedido ${orderId} aceito e em preparo.`);
-    } else if (order.status === 'PREPARING') {
-      setIfoodOrders(prev => prev.filter(o => o.id !== orderId));
-      addLog(`iFood: Pedido ${orderId} finalizado. Estoque atualizado.`);
     }
   };
 
@@ -569,7 +652,7 @@ export default function PDVPage() {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Main Workspace */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          {/* Search Bar - High Focus */}
+          {/* Search Bar */}
           <div className="p-4 bg-white border-b border-primary/5 flex items-center gap-4">
             <div className="relative flex-1 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 w-5 h-5 group-focus-within:text-secondary transition-colors" />
@@ -599,7 +682,7 @@ export default function PDVPage() {
             </div>
           </div>
 
-          {/* Central Display Area - High Visibility for Operator */}
+          {/* Central Display Area */}
           <div className="flex-1 flex flex-col p-4 md:p-8 bg-background overflow-hidden relative">
             
             <div className="flex-1 flex items-center justify-center min-h-0">
@@ -657,7 +740,6 @@ export default function PDVPage() {
 
             {/* Painel Inferior: Integração iFood e Logs */}
             <div className="h-48 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
-              {/* Fila iFood */}
               <div className="bg-white rounded-xl border border-primary/10 overflow-hidden flex flex-col">
                 <div className="bg-rose-50 border-b border-rose-100 p-2 flex items-center justify-between">
                   <span className="text-rose-600 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2">
@@ -699,7 +781,6 @@ export default function PDVPage() {
                 </div>
               </div>
 
-              {/* Logs e Auditoria */}
               <div className="bg-[#1e293b] rounded-xl overflow-hidden flex flex-col text-slate-300">
                 <div className="bg-slate-900 p-2 flex items-center gap-2 border-b border-slate-700">
                   <FileText className="w-3 h-3 text-slate-400" />
@@ -718,7 +799,7 @@ export default function PDVPage() {
           </div>
         </div>
 
-        {/* Checkout Sidebar - Receipt Style */}
+        {/* Checkout Sidebar */}
         <div className="w-full lg:w-[340px] bg-white border-t lg:border-t-0 lg:border-l border-primary/10 flex flex-col relative z-40 max-h-[50vh] lg:max-h-none overflow-hidden">
           <div className="p-4 border-b border-dashed border-primary/20 bg-white text-center">
             <h1 className="font-black text-sm uppercase tracking-[0.3em] mb-1">PEDRINHO 2</h1>
@@ -731,11 +812,9 @@ export default function PDVPage() {
 
           <div className="px-4 py-2 bg-primary/5 flex justify-between items-center text-[9px] font-black text-primary/70 uppercase tracking-widest">
             <span className="flex-1">Descrição</span>
-            <span className="w-12 text-center">Qtd</span>
-            <span className="w-16 text-right">Total</span>
+            <span className="w-20 text-center">Ações / Qtd</span>
           </div>
 
-          {/* Cart List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white custom-scrollbar">
             <AnimatePresence mode="popLayout">
               {cart.map((item, idx) => (
@@ -758,11 +837,38 @@ export default function PDVPage() {
                         {item.product.validade && <span className="text-amber-500">VAL: {item.product.validade}</span>}
                       </div>
                     </div>
-                    <div className="w-12 text-center text-[11px] font-mono font-bold text-primary/60">
-                      {item.quantity}
-                    </div>
-                    <div className="w-16 text-right text-[11px] font-mono font-black text-primary">
-                      {(item.product.price * item.quantity).toFixed(2).replace('.', ',')}
+                    
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-1 bg-white border border-primary/10 rounded-md p-0.5 shadow-sm">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); updateQuantity(item.product.id, -1); }} 
+                          className="p-1 hover:bg-primary/5 rounded text-primary/60 transition-colors"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        
+                        <span className="text-[11px] font-mono font-bold w-4 text-center text-primary">{item.quantity}</span>
+                        
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); updateQuantity(item.product.id, 1); }} 
+                          className="p-1 hover:bg-primary/5 rounded text-primary/60 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                        
+                        <div className="w-px h-3 bg-primary/10 mx-0.5" />
+                        
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); updateQuantity(item.product.id, -item.quantity); }} 
+                          className="p-1 hover:bg-danger/10 text-danger rounded transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                      
+                      <div className="text-[11px] font-mono font-black text-primary mt-1">
+                        {(item.product.price * item.quantity).toFixed(2).replace('.', ',')}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-2 border-b border-dashed border-primary/5" />
@@ -792,7 +898,6 @@ export default function PDVPage() {
             </div>
           </div>
 
-          {/* Action Area */}
           <div className="p-6 bg-white border-t border-primary/10 flex-shrink-0">
             <div className="grid grid-cols-3 gap-2 mb-6">
               {[
@@ -829,14 +934,12 @@ export default function PDVPage() {
         </div>
       </div>
 
-      {/* PDV Shortcuts Footer - Real Terminal Feel */}
+      {/* PDV Shortcuts Footer */}
       <footer className="h-10 bg-white border-t border-primary/10 flex items-center px-4 overflow-x-auto no-scrollbar gap-6 flex-shrink-0">
         {[
           { key: 'F1', label: 'Pesquisar' },
           { key: 'F2', label: 'Finalizar' },
-          { key: 'F3', label: 'Dinheiro' },
-          { key: 'F4', label: 'Cartão' },
-          { key: 'F5', label: 'PIX' },
+          { key: 'F7', label: 'Sangria/Supri' },
           { key: 'F8', label: 'Quantidade' },
           { key: 'F9', label: 'Fechar Caixa' },
           { key: 'DEL', label: 'Remover Item' },
@@ -846,6 +949,7 @@ export default function PDVPage() {
             className="flex items-center gap-2 whitespace-nowrap cursor-pointer hover:opacity-80"
             onClick={() => {
               if (item.key === 'F9') handleOpenCloseRegister();
+              if (item.key === 'F7') setShowDrawerModal(true);
             }}
           >
             <kbd className="bg-primary/5 border border-primary/10 px-1.5 py-0.5 rounded text-[10px] font-black text-primary/60">{item.key}</kbd>
@@ -856,6 +960,101 @@ export default function PDVPage() {
 
       {/* Overlays */}
       <AnimatePresence>
+        
+        {/* MODAL DE SANGRIA / SUPRIMENTO (NOVO F7) */}
+        {showDrawerModal && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="absolute inset-0 z-[110] bg-primary/95 backdrop-blur-md flex items-center justify-center p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            >
+              <div className="p-6 bg-[#F8FAFC] border-b border-primary/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-secondary/10 text-secondary rounded-lg">
+                    <ArrowRightLeft className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-primary uppercase tracking-tight">Fluxo de Gaveta</h2>
+                    <p className="text-[10px] text-primary/40 font-bold uppercase tracking-widest">Sangria (Saída) ou Suprimento (Entrada)</p>
+                  </div>
+                </div>
+                <Button variant="ghost" onClick={() => setShowDrawerModal(false)}>ESC</Button>
+              </div>
+              
+              <div className="p-8">
+                <form onSubmit={handleDrawerMovementSubmit} className="space-y-6">
+                  
+                  {/* Seleção do Tipo */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setDrawerForm({...drawerForm, type: 'sangria'})}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                        drawerForm.type === 'sangria' ? "border-danger bg-danger/5 text-danger" : "border-primary/10 text-primary/40 hover:border-primary/30"
+                      )}
+                    >
+                      <TrendingDown className="w-8 h-8" />
+                      <span className="font-black uppercase tracking-widest text-xs">Sangria (Retirar)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDrawerForm({...drawerForm, type: 'suprimento'})}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                        drawerForm.type === 'suprimento' ? "border-emerald-500 bg-emerald-500/5 text-emerald-600" : "border-primary/10 text-primary/40 hover:border-primary/30"
+                      )}
+                    >
+                      <TrendingUp className="w-8 h-8" />
+                      <span className="font-black uppercase tracking-widest text-xs">Suprimento (Pôr)</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Valor (R$)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 font-black">R$</span>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        min="0.01"
+                        required
+                        autoFocus
+                        value={drawerForm.amount}
+                        onChange={(e) => setDrawerForm({...drawerForm, amount: e.target.value})}
+                        className="w-full bg-[#F8FAFC] border border-primary/10 rounded-2xl py-4 pl-12 pr-4 text-2xl text-primary font-black focus:ring-2 focus:ring-primary outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Motivo / Observação</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ex: Troco para entregador, Compra de água..."
+                      value={drawerForm.reason}
+                      onChange={(e) => setDrawerForm({...drawerForm, reason: e.target.value})}
+                      className="w-full bg-[#F8FAFC] border border-primary/10 rounded-xl py-3 px-4 text-primary font-bold focus:ring-2 focus:ring-primary outline-none transition-all text-sm"
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full py-6 h-14 bg-secondary hover:bg-secondary-dark text-white font-black uppercase tracking-widest gap-2 text-sm rounded-xl">
+                    <CheckCircle2 className="w-5 h-5" /> Registrar Movimentação
+                  </Button>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* OUTROS MODAIS (Leitor, Sucesso, Redução Z) */}
         {isScannerOpen && (
           <motion.div 
             initial={{ opacity: 0 }} 
@@ -944,7 +1143,6 @@ export default function PDVPage() {
           </motion.div>
         )}
 
-        {/* Modal de Fechamento de Caixa (Redução Z) */}
         {showCloseRegister && (
           <motion.div 
             initial={{ opacity: 0 }} 
@@ -973,19 +1171,24 @@ export default function PDVPage() {
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-primary/5">
                     <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">Dinheiro (Vendas)</span>
-                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.money)}</span>
+                    <span className="text-primary font-black font-mono">+ {formatCurrency(registerStats.money)}</span>
+                  </div>
+                  
+                  {/* NOVOS DADOS DA REDUÇÃO Z */}
+                  <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                    <span className="text-emerald-600/80 font-bold text-xs uppercase tracking-widest">Suprimento (Entrada)</span>
+                    <span className="text-emerald-600 font-black font-mono">+ {formatCurrency(getTotalSuprimento())}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-primary/5">
-                    <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">Cartão</span>
-                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.card)}</span>
+                    <span className="text-danger/80 font-bold text-xs uppercase tracking-widest">Sangria (Retirada)</span>
+                    <span className="text-danger font-black font-mono">- {formatCurrency(getTotalSangria())}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-primary/5">
-                    <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">PIX</span>
-                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.pix)}</span>
-                  </div>
+                  
                   <div className="flex justify-between items-center py-3 bg-primary/5 px-4 rounded-xl mt-4">
                     <span className="text-primary font-black uppercase tracking-widest">Total na Gaveta</span>
-                    <span className="text-primary font-black font-mono text-xl">{formatCurrency(registerStats.initialCash + registerStats.money)}</span>
+                    <span className="text-primary font-black font-mono text-xl">
+                      {formatCurrency(registerStats.initialCash + registerStats.money + getTotalSuprimento() - getTotalSangria())}
+                    </span>
                   </div>
                 </div>
 

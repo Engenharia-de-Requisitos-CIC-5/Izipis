@@ -1,113 +1,274 @@
 'use client';
 
-import { Badge } from '@/components/ui/Badge';
 import React, { useState, useEffect } from 'react';
-import { Calendar, Search, Download, ExternalLink, CreditCard, Banknote, QrCode, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Receipt, 
+  Search, 
+  Calendar, 
+  CreditCard, 
+  Banknote, 
+  Hash, 
+  Store, 
+  Smartphone,
+  Eye,
+  X,
+  Printer
+} from 'lucide-react';
 import { getSales } from '@/services/sales';
 import { Sale } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { StatCard } from '@/components/ui/StatCard';
 
 export default function SalesHistoryPage() {
   const [sales, setSales] = useState<Sale[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estado para o Modal de Detalhes do Cupom
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const data = await getSales();
-      setSales(data);
-      setIsLoading(false);
-    }
-    load();
+    loadSales();
   }, []);
 
-  const getPaymentIcon = (method: Sale['paymentMethod']) => {
-    switch (method) {
-      case 'card': return <CreditCard className="w-4 h-4" />;
-      case 'money': return <Banknote className="w-4 h-4" />;
-      case 'pix': return <QrCode className="w-4 h-4" />;
-      default: return null;
+  const loadSales = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getSales();
+      // Ordena da mais recente para a mais antiga
+      const sortedData = data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setSales(sortedData);
+    } catch (error) {
+      console.error("Erro ao carregar vendas", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const totalVolume = sales.reduce((acc, s) => acc + s.total, 0);
-  const avgTicket = sales.length > 0 ? totalVolume / sales.length : 0;
+  const filteredSales = sales.filter(s => 
+    s.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (s.customerName && s.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const getPaymentIcon = (method: string) => {
+    switch(method) {
+      case 'money': return <Banknote className="w-4 h-4 text-emerald-600" />;
+      case 'card': return <CreditCard className="w-4 h-4 text-blue-600" />;
+      case 'pix': return <Hash className="w-4 h-4 text-teal-600" />;
+      default: return <CreditCard className="w-4 h-4 text-primary/40" />;
+    }
+  };
+
+  const getPaymentName = (method: string) => {
+    switch(method) {
+      case 'money': return 'Dinheiro';
+      case 'card': return 'Cartão';
+      case 'pix': return 'PIX';
+      default: return method;
+    }
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans max-w-7xl mx-auto pb-12 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-primary uppercase">Registro de Operações</h1>
-          <p className="text-foreground/60 font-medium">Histórico completo de transações e auditoria de caixa.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary">Auditoria de Vendas</h1>
+          <p className="text-foreground/60 font-medium">Histórico completo de transações e cupons fiscais emitidos.</p>
         </div>
-        <Button variant="secondary" className="h-14 px-8 rounded-2xl gap-3 font-black uppercase tracking-widest text-xs shadow-xl shadow-secondary/10 border-none"><Download className="w-5 h-5" /> Exportar Relatório</Button>
+        <Badge variant="outline" className="h-10 px-4 rounded-xl border-primary/10 font-bold gap-2 text-primary/60 text-sm">
+          <Receipt className="w-4 h-4" /> {sales.length} Transações Registradas
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Vendas Totais" value={sales.length} icon={ArrowUpRight} />
-        <StatCard label="Volume Total" value={formatCurrency(totalVolume)} icon={TrendingUp} iconColor="text-accent" />
-        <StatCard label="Ticket Médio" value={formatCurrency(avgTicket)} icon={CreditCard} iconColor="text-blue-400" />
-      </div>
-
-      <Card>
-        <div className="p-6 border-b border-primary/5 flex flex-col md:flex-row gap-4 items-center bg-[#F8FAFC]">
-          <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/30 w-5 h-5 group-focus-within:text-primary transition-colors" />
+      <Card className="border-primary/5 shadow-sm bg-white overflow-hidden">
+        <div className="p-4 border-b border-primary/5 flex gap-4 items-center bg-[#F8FAFC]">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 w-5 h-5" />
             <input 
               type="text" 
-              placeholder="Pesquisar venda por ID ou cliente..." 
-              className="w-full bg-white border border-primary/10 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+              placeholder="Buscar por ID do Cupom ou Cliente..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-primary/10 rounded-xl py-2.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm font-bold" 
             />
           </div>
-          <Button variant="secondary" className="h-12 px-6 rounded-xl border-primary/10 gap-2 font-bold"><Calendar className="w-4 h-4" /> Últimos 7 dias</Button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-primary/5">
-                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">ID da Venda</th>
-                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Data/Hora</th>
-                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Qtd. Itens</th>
-                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Pagamento</th>
-                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40">Total</th>
-                <th className="p-5 font-black text-[10px] uppercase tracking-widest text-primary/40 text-right">Ações</th>
+              <tr className="bg-white border-b border-primary/5">
+                <th className="p-4 pl-6 font-black text-[10px] uppercase tracking-widest text-primary/40">Data / Cupom</th>
+                <th className="p-4 font-black text-[10px] uppercase tracking-widest text-primary/40">Canal</th>
+                <th className="p-4 font-black text-[10px] uppercase tracking-widest text-primary/40">Pagamento</th>
+                <th className="p-4 font-black text-[10px] uppercase tracking-widest text-primary/40">Itens</th>
+                <th className="p-4 font-black text-[10px] uppercase tracking-widest text-primary/40 text-right">Valor Total</th>
+                <th className="p-4 font-black text-[10px] uppercase tracking-widest text-primary/40 text-center pr-6">Ação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-primary/5 text-sm font-medium">
               {isLoading ? (
-                <tr><td colSpan={6} className="p-8 text-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
-              ) : sales.length > 0 ? (
-                sales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-primary/5 transition-all group">
-                    <td className="p-5 text-xs font-mono font-bold text-primary/60">{sale.id}</td>
-                    <td className="p-5 text-sm font-medium">{new Date(sale.timestamp).toLocaleString('pt-BR')}</td>
-                    <td className="p-5">
-                      <Badge variant="outline" className="rounded-lg border-primary/10 bg-primary/5 text-[10px] font-black uppercase">{sale.items.length} ITENS</Badge>
-                    </td>
-                    <td className="p-5">
-                      <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                        <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary">
-                          {getPaymentIcon(sale.paymentMethod)}
-                        </div>
-                        <span className="capitalize">{sale.paymentMethod.toLowerCase()}</span>
-                      </div>
-                    </td>
-                    <td className="p-5 font-black text-primary">{formatCurrency(sale.total)}</td>
-                    <td className="p-5 text-right">
-                      <Button variant="ghost" size="icon" className="w-9 h-9 rounded-xl hover:bg-primary hover:text-white transition-all"><ExternalLink className="w-4 h-4" /></Button>
-                    </td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={6} className="p-12 text-center text-primary/30">Carregando histórico...</td>
+                </tr>
+              ) : filteredSales.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center text-primary/40 font-bold">Nenhuma venda encontrada no período.</td>
+                </tr>
               ) : (
-                <tr><td colSpan={6} className="p-12 text-center text-muted-foreground"><p>Nenhuma venda registrada ainda.</p></td></tr>
+                filteredSales.map((sale) => {
+                  const date = new Date(sale.timestamp);
+                  const totalItems = sale.items.reduce((acc, item) => acc + item.quantity, 0);
+
+                  return (
+                    <tr key={sale.id} className="hover:bg-primary/5 transition-colors">
+                      <td className="p-4 pl-6">
+                        <p className="font-bold text-primary flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-primary/40" /> 
+                          {date.toLocaleDateString('pt-BR')} <span className="text-primary/40 mx-1">•</span> {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="text-[10px] font-mono text-primary/40 mt-0.5 font-bold uppercase">ID: {sale.id}</p>
+                      </td>
+                      <td className="p-4">
+                        {sale.source === 'IFOOD' ? (
+                          <Badge className="bg-rose-100 text-rose-700 border-none font-bold text-[10px] gap-1 px-2 py-0.5">
+                            <Smartphone className="w-3 h-3" /> iFood
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-primary/10 text-primary border-none font-bold text-[10px] gap-1 px-2 py-0.5">
+                            <Store className="w-3 h-3" /> Balcão
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-white border border-primary/10 rounded-md">
+                            {getPaymentIcon(sale.paymentMethod)}
+                          </div>
+                          <span className="font-bold text-primary/70 text-xs uppercase tracking-wider">{getPaymentName(sale.paymentMethod)}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="font-mono font-bold text-primary/60">{totalItems} un</span>
+                      </td>
+                      <td className="p-4 text-right font-mono font-black text-primary text-base">
+                        {formatCurrency(sale.total)}
+                      </td>
+                      <td className="p-4 pr-6 text-center">
+                        <button 
+                          onClick={() => setSelectedSale(sale)}
+                          className="p-2 bg-primary/5 hover:bg-primary/10 rounded-lg text-primary hover:text-primary transition-colors inline-flex items-center justify-center"
+                          title="Ver Detalhes do Cupom"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {/* Modal de Detalhes da Venda (Visualizador de Cupom) */}
+      <AnimatePresence>
+        {selectedSale && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-primary/95 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              {/* Cabeçalho do Cupom */}
+              <div className="p-6 border-b border-dashed border-primary/20 bg-[#F8FAFC] text-center relative flex-shrink-0">
+                <button 
+                  onClick={() => setSelectedSale(null)} 
+                  className="absolute top-4 right-4 p-2 hover:bg-primary/5 rounded-full text-primary/40"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <Receipt className="w-6 h-6" />
+                </div>
+                <h2 className="text-sm font-black text-primary uppercase tracking-[0.2em] mb-1">MERCADINHO PEDRINHO 2</h2>
+                <p className="text-[10px] text-primary/60 font-bold uppercase tracking-widest">Detalhes da Transação</p>
+                <p className="text-[9px] font-mono text-primary/40 mt-3 bg-white inline-block px-3 py-1 border border-primary/10 rounded-full">
+                  CUPOM: {selectedSale.id}
+                </p>
+              </div>
+
+              {/* Corpo do Cupom (Itens) */}
+              <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                <div className="flex justify-between text-[9px] font-black text-primary/40 uppercase tracking-widest mb-3 border-b border-primary/10 pb-2">
+                  <span>Descrição</span>
+                  <div className="flex gap-4">
+                    <span className="w-8 text-center">Qtd</span>
+                    <span className="w-16 text-right">Total</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {selectedSale.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-xs font-medium text-primary border-b border-dashed border-primary/5 pb-2">
+                      <span className="flex-1 pr-2 truncate font-bold uppercase text-[10px]">{item.name}</span>
+                      <div className="flex gap-4 font-mono">
+                        <span className="w-8 text-center text-primary/60">{item.quantity}</span>
+                        <span className="w-16 text-right">{formatCurrency(item.price * item.quantity)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rodapé do Cupom (Totais) */}
+              <div className="p-6 bg-primary/5 flex flex-col gap-3 flex-shrink-0">
+                <div className="flex justify-between items-center text-xs font-bold text-primary/60 uppercase tracking-widest">
+                  <span>Data da Compra</span>
+                  <span className="font-mono">{new Date(selectedSale.timestamp).toLocaleString('pt-BR')}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs font-bold text-primary/60 uppercase tracking-widest">
+                  <span>Método</span>
+                  <span className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-primary/10">
+                    {getPaymentIcon(selectedSale.paymentMethod)} {getPaymentName(selectedSale.paymentMethod)}
+                  </span>
+                </div>
+                <div className="h-px w-full bg-primary/10 my-1" />
+                <div className="flex justify-between items-end">
+                  <span className="text-sm font-black text-primary uppercase tracking-[0.2em]">Total</span>
+                  <span className="text-3xl font-black text-primary font-mono leading-none">{formatCurrency(selectedSale.total)}</span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(var(--primary-rgb), 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(var(--primary-rgb), 0.2);
+        }
+      `}</style>
     </div>
   );
 }

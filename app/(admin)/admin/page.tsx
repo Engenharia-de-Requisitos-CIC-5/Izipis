@@ -1,351 +1,311 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
+  DollarSign, 
+  ShoppingBag, 
   TrendingUp, 
-  Users, 
-  Package, 
   AlertTriangle, 
-  BarChart3, 
-  ShoppingBag,
-  ExternalLink,
-  RefreshCw,
-  CheckCircle2,
-  Clock,
-  Download,
-  X
+  ArrowUpRight, 
+  Activity, 
+  Store, 
+  Smartphone,
+  Package,
+  RefreshCw
 } from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
-import { StatCard } from '@/components/ui/StatCard';
-import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { getProducts } from '@/services/products';
 import { getSalesStats } from '@/services/sales';
-import { pollNewOrders, integrateIfoodOrder } from '@/services/ifood';
-import Link from 'next/link';
+import { getProducts } from '@/services/products';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+// A correção está nesta linha abaixo, adicionamos o 'cn' junto com o formatCurrency:
+import { formatCurrency, cn } from '@/lib/utils';
+import { Product, Sale } from '@/lib/types';
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    dailyRevenue: 0,
-    totalProducts: 0,
-    lowStockCount: 0,
+interface DashboardData {
+  totalRevenue: number;
+  totalOrders: number;
+  avgTicket: number;
+  ifoodSales: number;
+  localSales: number;
+  recentSales: Sale[];
+  lowStockCount: number;
+}
+
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData>({
+    totalRevenue: 0,
     totalOrders: 0,
+    avgTicket: 0,
     ifoodSales: 0,
     localSales: 0,
-    recentSales: [] as any[]
+    recentSales: [],
+    lowStockCount: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isPolling, setIsPolling] = useState(false);
-  const [notification, setNotification] = useState<string | null>(null);
-  const [syncLogs, setSyncLogs] = useState<string[]>([]);
-  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
 
-  const loadStats = async () => {
-    const products = await getProducts();
-    const salesStats = await getSalesStats();
-    const lowStock = products.filter(p => p.stock < (p.minStock || 20)).length;
-    
-    setStats({
-      dailyRevenue: salesStats.totalRevenue,
-      totalProducts: products.length,
-      lowStockCount: lowStock,
-      totalOrders: salesStats.totalOrders,
-      ifoodSales: salesStats.ifoodSales,
-      localSales: salesStats.localSales,
-      recentSales: salesStats.recentSales
-    });
-    setIsLoading(false);
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      // Busca dados reais do arquivo de vendas e estoque
+      const stats = await getSalesStats();
+      const products = await getProducts();
+      
+      // Calcula quantos produtos estão abaixo do estoque mínimo
+      const lowStock = products.filter(p => p.stock <= (p.minStock || 5)).length;
+
+      setData({
+        totalRevenue: stats.totalRevenue,
+        totalOrders: stats.totalOrders,
+        avgTicket: stats.avgTicket,
+        ifoodSales: stats.ifoodSales,
+        localSales: stats.localSales,
+        recentSales: stats.recentSales,
+        lowStockCount: lowStock
+      });
+    } catch (error) {
+      console.error('Erro ao carregar métricas do dashboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadStats();
-    
-    // Auto-refresh stats every 30 seconds
-    const interval = setInterval(loadStats, 30000);
-    return () => clearInterval(interval);
+    loadDashboardData();
   }, []);
 
-  const addLog = (message: string) => {
-    setSyncLogs(prev => [message, ...prev].slice(0, 5));
-  };
-
-  const simulateIfoodPolling = async () => {
-    setIsPolling(true);
-    addLog("Iniciando handshake com iFood API...");
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    addLog("Autenticando Merchant ID: IZIPIS-MAIN-01...");
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    addLog("Consumindo fila de eventos...");
-    const newOrders = await pollNewOrders();
-    
-    if (newOrders.length > 0) {
-      addLog(`${newOrders.length} novos pedidos detectados!`);
-      setPendingOrders(prev => [...newOrders, ...prev]);
-      setNotification(`Novo pedido iFood #${newOrders[0].displayId} aguardando revisão.`);
-      setTimeout(() => setNotification(null), 5000);
-    } else {
-      addLog("Nenhum evento pendente na fila.");
-      setNotification("Sincronização concluída: tudo em dia.");
-      setTimeout(() => setNotification(null), 3000);
-    }
-    setIsPolling(false);
-  };
-
-  const handleIntegrateOrder = async (order: any) => {
-    addLog(`Integrando pedido #${order.displayId}...`);
-    await integrateIfoodOrder(order);
-    setPendingOrders(prev => prev.filter(o => o.id !== order.id));
-    addLog(`Pedido #${order.displayId} integrado ao PDV.`);
-    await loadStats();
-  };
-
-  // Nova função para atender ao requisito de Exportação de Relatórios
-  const handleExportCSV = () => {
-    if (stats.recentSales.length === 0) {
-      setNotification('Sem dados de vendas para exportar.');
-      setTimeout(() => setNotification(null), 3000);
-      return;
-    }
-
-    const headers = ['ID do Pedido,Origem,Total (R$),Data/Hora'];
-    const rows = stats.recentSales.map(sale => 
-      `${sale.id},${sale.source},${sale.total},${new Date(sale.timestamp).toLocaleString('pt-BR')}`
-    );
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `relatorio_izipis_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setNotification('Relatório CSV exportado com sucesso!');
-    setTimeout(() => setNotification(null), 3000);
-  };
-
-  const statCards = [
-    { label: 'Faturamento Total', value: stats.dailyRevenue, trend: '+12.5%', isPositive: true, icon: TrendingUp, iconColor: 'text-primary' },
-    { label: 'Pedidos iFood', value: stats.ifoodSales, trend: 'Canal Online', isPositive: true, icon: ShoppingBag, iconColor: 'text-secondary' },
-    { label: 'Vendas Balcão', value: stats.localSales, trend: 'Presencial', isPositive: true, icon: Users, iconColor: 'text-primary' },
-    { label: 'Estoque Crítico', value: stats.lowStockCount, trend: stats.lowStockCount > 0 ? 'Atenção' : 'Normal', isPositive: stats.lowStockCount === 0, icon: AlertTriangle, iconColor: stats.lowStockCount > 0 ? 'text-danger' : 'text-accent' },
-  ];
+  // Proporção de vendas para os gráficos de barra nativos
+  const totalChannels = data.localSales + data.ifoodSales || 1;
+  const localPercentage = (data.localSales / totalChannels) * 100;
+  const ifoodPercentage = (data.ifoodSales / totalChannels) * 100;
 
   return (
-    <div className="space-y-8 font-sans relative">
-      <AnimatePresence>
-        {notification && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-success text-white px-6 py-3 rounded-2xl flex items-center gap-3 font-bold text-sm border border-success/20 shadow-lg"
-          >
-            <CheckCircle2 className="w-5 h-5" />
-            {notification}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div className="space-y-8 font-sans max-w-7xl mx-auto pb-12">
+      {/* Topo do Dashboard */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl md:text-3xl font-extrabold tracking-tight text-primary uppercase">Console de Comando</h1>
-          <p className="text-foreground/60 font-medium text-xs md:text-sm">Gestão integrada: Balcão + iFood + Estoque.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary">Dashboard Principal</h1>
+          <p className="text-foreground/60 font-medium">Dados consolidados do caixa local e integração iFood em tempo real.</p>
         </div>
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={handleExportCSV} 
-            className="h-10 px-4 rounded-xl border-primary/10 gap-2 font-bold text-[10px] uppercase tracking-widest hover:bg-primary/5"
-          >
-            <Download className="w-4 h-4 text-primary" />
-            Exportar Relatório
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={simulateIfoodPolling} 
-            disabled={isPolling}
-            className="h-10 px-4 rounded-xl border-primary/10 gap-2 font-bold text-[10px] uppercase tracking-widest hover:bg-primary/5"
-          >
-            <RefreshCw className={cn("w-4 h-4 text-secondary", isPolling && "animate-spin")} />
-            {isPolling ? 'Verificando iFood...' : 'Sincronizar iFood'}
-          </Button>
-        </div>
+        <Button 
+          onClick={loadDashboardData} 
+          disabled={isLoading}
+          variant="outline"
+          className="border-primary/10 hover:bg-primary/5 font-bold gap-2 rounded-xl"
+        >
+          <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+          Atualizar Dados
+        </Button>
       </div>
 
+      {/* Cards de Indicadores (KPIs) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
-            <StatCard 
-              label={stat.label} 
-              value={typeof stat.value === 'number' && (stat.label.includes('Faturamento') || stat.label.includes('Vendas')) && !stat.label.includes('Balcão') ? formatCurrency(stat.value) : stat.value} 
-              trend={stat.trend} 
-              isPositive={stat.isPositive} 
-              icon={stat.icon} 
-              iconColor={stat.iconColor} 
-            />
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-primary" />
+        {/* Card 1: Faturamento */}
+        <Card className="border-primary/5 shadow-sm bg-white overflow-hidden relative group">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Faturamento Bruto</p>
+                <h3 className="text-3xl font-black font-mono text-primary tracking-tight tabular-nums">
+                  {formatCurrency(data.totalRevenue)}
+                </h3>
               </div>
-              <h3 className="font-bold">Desempenho por Canal</h3>
-            </div>
-            <div className="flex gap-2">
-              <Badge className="bg-secondary/10 text-secondary border-none">iFood: {stats.ifoodSales}</Badge>
-              <Badge className="bg-primary/10 text-primary border-none">Local: {stats.localSales}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="min-h-[350px] flex flex-col justify-center items-center text-muted-foreground bg-white/5">
-            <div className="flex flex-col items-center gap-4 text-center p-12">
-              <div className="flex gap-4 mb-4">
-                <div className="w-16 h-24 bg-primary/5 rounded-t-lg relative">
-                  <div className="absolute bottom-0 w-full bg-primary/20 rounded-t-lg transition-all" style={{ height: `${(stats.localSales / (stats.totalOrders || 1)) * 100}%` }} />
-                </div>
-                <div className="w-16 h-24 bg-secondary/5 rounded-t-lg relative">
-                  <div className="absolute bottom-0 w-full bg-secondary/20 rounded-t-lg transition-all" style={{ height: `${(stats.ifoodSales / (stats.totalOrders || 1)) * 100}%` }} />
-                </div>
+              <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                <DollarSign className="w-5 h-5" />
               </div>
-              <p className="font-black text-primary/40 uppercase text-[10px] tracking-widest">Distribuição de Pedidos</p>
-              <p className="text-xs text-primary/30 max-w-xs font-medium">As métricas de conversão e ticket médio por canal estão sendo processadas em tempo real.</p>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>+12.4%</span>
+              <span className="text-primary/30 font-medium ml-1">vendas do balcão e app</span>
             </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <Card className="border-primary/20 bg-primary/[0.02] overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="flex items-center gap-2">
-                <RefreshCw className={cn("w-4 h-4 text-primary", isPolling && "animate-spin")} />
-                <h3 className="font-bold text-sm">Log de Sincronia</h3>
+        {/* Card 2: Total de Pedidos */}
+        <Card className="border-primary/5 shadow-sm bg-white overflow-hidden relative group">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Total de Vendas</p>
+                <h3 className="text-3xl font-black font-mono text-primary tracking-tight tabular-nums">
+                  {data.totalOrders.toString().padStart(2, '0')}
+                </h3>
               </div>
-              <Badge variant="outline" className="text-[9px] uppercase border-primary/20">iFood Real-time</Badge>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {syncLogs.length > 0 ? (
-                syncLogs.map((log, i) => (
-                  <motion.div 
-                    key={i} 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-2 text-[10px] font-mono text-primary/60"
-                  >
-                    <span className="text-primary/30">[{new Date().toLocaleTimeString('pt-BR', { hour12: false })}]</span>
-                    <span>{log}</span>
-                  </motion.div>
-                ))
+              <div className="p-3 bg-primary/5 text-primary rounded-xl">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-primary/40">
+              <Activity className="w-3.5 h-3.5 text-secondary" />
+              <span className="font-black text-primary/60">{data.localSales} locais</span>
+              <span>•</span>
+              <span className="font-black text-rose-500">{data.ifoodSales} iFood</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Ticket Médio */}
+        <Card className="border-primary/5 shadow-sm bg-white overflow-hidden relative group">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Ticket Médio</p>
+                <h3 className="text-3xl font-black font-mono text-primary tracking-tight tabular-nums">
+                  {formatCurrency(data.avgTicket)}
+                </h3>
+              </div>
+              <div className="p-3 bg-secondary/10 text-secondary rounded-xl">
+                <ArrowUpRight className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1 text-xs font-medium text-primary/40">
+              <span className="font-bold text-primary/60">Média de gasto</span> por cliente no estabelecimento.
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Alertas de Estoque */}
+        <Card className={cn(
+          "border-transparent shadow-sm transition-colors",
+          data.lowStockCount > 0 ? "bg-amber-500/5 border-amber-500/20" : "bg-white border-primary/5"
+        )}>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Ruptura / Estoque Baixo</p>
+                <h3 className={cn(
+                  "text-3xl font-black font-mono tracking-tight tabular-nums",
+                  data.lowStockCount > 0 ? "text-amber-600" : "text-primary"
+                )}>
+                  {data.lowStockCount.toString().padStart(2, '0')}
+                </h3>
+              </div>
+              <div className={cn(
+                "p-3 rounded-xl",
+                data.lowStockCount > 0 ? "bg-amber-500/10 text-amber-600" : "bg-primary/5 text-primary/40"
+              )}>
+                {data.lowStockCount > 0 ? <AlertTriangle className="w-5 h-5" /> : <Package className="w-5 h-5" />}
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1 text-xs font-bold">
+              {data.lowStockCount > 0 ? (
+                <span className="text-amber-600 uppercase tracking-wider">Ação Recomendada no Izipis Predict</span>
               ) : (
-                <p className="text-[10px] text-primary/30 font-mono italic">Aguardando início do polling...</p>
+                <span className="text-emerald-600">Todos os produtos abastecidos</span>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-          {pendingOrders.length > 0 && (
-            <Card className="border-secondary/40 bg-secondary/[0.03]">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-secondary" />
-                    <h3 className="font-bold text-sm text-secondary uppercase">Pedidos Pendentes</h3>
-                  </div>
-                  <Badge className="bg-secondary text-white">{pendingOrders.length}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {pendingOrders.map((order) => (
-                  <div key={order.id} className="p-4 rounded-xl bg-white border border-secondary/20">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="text-[10px] font-black text-primary/40 uppercase">#{order.displayId}</p>
-                        <p className="font-bold text-xs">{order.customer.name}</p>
-                      </div>
-                      <p className="font-black text-sm text-secondary">{formatCurrency(order.total.orderAmount)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => handleIntegrateOrder(order)}
-                        className="flex-1 h-8 text-[10px] bg-primary hover:bg-primary-dark font-black uppercase tracking-widest"
-                      >
-                        Aceitar
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        className="h-8 w-8 p-0 border-primary/10"
-                        onClick={() => setPendingOrders(prev => prev.filter(o => o.id !== order.id))}
-                      >
-                        <X className="w-4 h-4 text-primary/40" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+      {/* Seção de Gráficos Nativos e Histórico */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Painel da Esquerda: Canais de Vendas */}
+        <Card className="border-primary/5 shadow-sm bg-white p-6 lg:col-span-1">
+          <h2 className="text-lg font-bold text-primary mb-1 flex items-center gap-2">Desempenho por Canal</h2>
+          <p className="text-xs text-primary/40 font-medium mb-6">Divisão de faturamento físico vs digital.</p>
+          
+          <div className="space-y-6">
+            {/* Canal Local */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-primary flex items-center gap-1.5"><Store className="w-4 h-4 text-primary/60" /> Vendas Balcão (PDV)</span>
+                <span className="text-primary/60 font-mono">{data.localSales} ordens ({localPercentage.toFixed(0)}%)</span>
+              </div>
+              <div className="w-full bg-[#F1F5F9] h-3 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${localPercentage}%` }} 
+                  transition={{ duration: 1 }} 
+                  className="bg-primary h-full rounded-full" 
+                />
+              </div>
+            </div>
 
-          <Card className="flex flex-col border-primary/10 bg-primary/[0.01]">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-secondary" />
-                <h3 className="font-bold text-sm">Status iFood</h3>
+            {/* Canal iFood */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-rose-600 flex items-center gap-1.5"><Smartphone className="w-4 h-4" /> Aplicativo iFood</span>
+                <span className="text-rose-600 font-mono">{data.ifoodSales} ordens ({ifoodPercentage.toFixed(0)}%)</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                <span className="text-[10px] font-black text-success uppercase">Online</span>
+              <div className="w-full bg-[#F1F5F9] h-3 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${ifoodPercentage}%` }} 
+                  transition={{ duration: 1 }} 
+                  className="bg-rose-500 h-full rounded-full" 
+                />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="p-4 rounded-2xl bg-white border border-secondary/10">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-bold text-primary/40 uppercase">Merchant ID</span>
-                  <span className="text-[10px] font-mono font-bold text-primary">IZIPIS-MAIN-01</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="flex flex-col flex-1">
-            <CardHeader>
-              <h3 className="font-bold">Histórico Recente</h3>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {stats.recentSales.length > 0 ? (
-                stats.recentSales.map((sale) => (
-                  <div key={sale.id} className="flex items-center justify-between p-3 rounded-xl bg-[#F8FAFC] border border-primary/5 group hover:border-secondary/20 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-9 h-9 rounded-lg flex items-center justify-center",
-                        sale.source === 'IFOOD' ? "bg-secondary/10 text-secondary" : "bg-primary/10 text-primary"
-                      )}>
-                        {sale.source === 'IFOOD' ? <ShoppingBag className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-primary uppercase">{sale.source} #{sale.id.slice(-4)}</p>
-                        <p className="text-[9px] text-primary/40 font-bold">{new Date(sale.timestamp).toLocaleTimeString('pt-BR')}</p>
-                      </div>
-                    </div>
-                    <p className="font-black text-xs text-primary">{formatCurrency(sale.total)}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-primary/10 py-12">
-                  <ShoppingBag className="w-12 h-12 mb-2" />
-                  <p className="text-xs font-bold uppercase tracking-widest">Aguardando Vendas</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+          <div className="mt-8 pt-6 border-t border-primary/5 bg-[#F8FAFC] rounded-2xl p-4 text-center">
+            <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mb-1">Status de Sincronismo</p>
+            <p className="text-xs font-bold text-emerald-600 flex items-center justify-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> API iFood Conectada
+            </p>
+          </div>
+        </Card>
+
+        {/* Painel da Direita: Últimas Vendas Geradas */}
+        <Card className="border-primary/5 shadow-sm bg-white lg:col-span-2 overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-primary/5 bg-[#F8FAFC] flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-primary">Últimas Vendas do Período</h2>
+              <p className="text-xs text-primary/40 font-medium">Transações registradas em tempo real pelo caixa local.</p>
+            </div>
+            <Badge variant="secondary" className="font-mono">{data.recentSales.length} recentes</Badge>
+          </div>
+
+          <div className="flex-1 overflow-x-auto">
+            {data.recentSales.length === 0 ? (
+              <div className="p-12 text-center text-primary/30 font-medium text-sm flex flex-col items-center justify-center space-y-2">
+                <ShoppingBag className="w-10 h-10 stroke-[1]" />
+                <p>Nenhuma venda registrada hoje no sistema.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#F8FAFC] border-b border-primary/5 text-[10px] font-black uppercase tracking-widest text-primary/40">
+                    <th className="p-4 pl-6">ID / Horário</th>
+                    <th className="p-4">Canal</th>
+                    <th className="p-4">Pagamento</th>
+                    <th className="p-4 text-right pr-6">Total Venda</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary/5 text-sm font-medium">
+                  {data.recentSales.map((sale) => (
+                    <tr key={sale.id} className="hover:bg-primary/5 transition-colors">
+                      <td className="p-4 pl-6">
+                        <p className="font-bold text-primary font-mono">{sale.id}</p>
+                        <p className="text-[10px] text-primary/40 font-mono mt-0.5">
+                          {new Date(sale.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </p>
+                      </td>
+                      <td className="p-4">
+                        {sale.source === 'IFOOD' ? (
+                          <Badge className="bg-rose-100 text-rose-700 border-none font-bold text-[10px]">IFOOD</Badge>
+                        ) : (
+                          <Badge className="bg-primary/10 text-primary border-none font-bold text-[10px]">BALCÃO</Badge>
+                        )}
+                      </td>
+                      <td className="p-4 text-xs font-black uppercase tracking-wider text-primary/60 font-mono">
+                        {sale.paymentMethod === 'money' ? 'Dinheiro' : sale.paymentMethod === 'card' ? 'Cartão' : 'PIX'}
+                      </td>
+                      <td className="p-4 text-right pr-6 font-mono font-black text-primary">
+                        {formatCurrency(sale.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Card>
+
       </div>
     </div>
   );

@@ -27,3 +27,12 @@ export interface Sale {
   source: 'LOCAL' | 'IFOOD';
   customerName?: string;
 }
+
+export type UserRole = 'ADMIN' | 'VENDOR';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}

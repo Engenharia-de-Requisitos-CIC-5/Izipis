@@ -9,15 +9,12 @@ import {
   Package, 
   Hash, 
   Calendar, 
-  CheckCircle, 
   Trash2,
   Building2,
-  Save,
-  AlertTriangle
+  Save
 } from 'lucide-react';
-import { getProducts } from '@/services/products';
+import { getProducts, getProductById, updateProduct } from '@/services/products';
 import { Product } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -33,6 +30,7 @@ export default function RecebimentoPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Dados da Nota Fiscal
   const [nfData, setNfData] = useState({
@@ -43,7 +41,7 @@ export default function RecebimentoPage() {
   // Itens sendo recebidos
   const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
   
-  // Produto selecionado aguardando preenchimento de lote/validade
+  // Produto selecionado aguardando preenchimento
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [itemForm, setItemForm] = useState({
     quantity: '1',
@@ -54,22 +52,28 @@ export default function RecebimentoPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function load() {
-      const data = await getProducts();
-      setProducts(data);
-      setIsLoading(false);
-    }
-    load();
+    loadProducts();
   }, []);
+
+  const loadProducts = async () => {
+    setIsLoading(true);
+    const data = await getProducts();
+    setProducts(data);
+    setIsLoading(false);
+  };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchTerm) {
-      const product = products.find(p => p.sku.toLowerCase() === searchTerm.toLowerCase() || p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      const product = products.find(p => 
+        p.sku.toLowerCase() === searchTerm.toLowerCase() || 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      
       if (product) {
         setSelectedProduct(product);
         setSearchTerm('');
       } else {
-        alert('Produto não encontrado!');
+        alert('Produto não encontrado! Verifique o SKU ou cadastre no Estoque primeiro.');
       }
     }
   };
@@ -85,7 +89,6 @@ export default function RecebimentoPage() {
       validade: itemForm.validade
     }]);
 
-    // Resetar form do item
     setSelectedProduct(null);
     setItemForm({ quantity: '1', lote: '', validade: '' });
     searchInputRef.current?.focus();
@@ -95,6 +98,7 @@ export default function RecebimentoPage() {
     setReceiptItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  // INTEGRAÇÃO REAL COM O BANCO DE DADOS (LOCALSTORAGE)
   const handleFinalizeReceipt = async () => {
     if (!nfData.numeroNF || !nfData.fornecedor) {
       alert('Preencha os dados da Nota Fiscal e o Fornecedor antes de finalizar.');
@@ -105,13 +109,35 @@ export default function RecebimentoPage() {
       return;
     }
 
-    // Aqui entraria a chamada à API para salvar o recebimento e atualizar o estoque
-    console.log('Recebimento finalizado:', { nfData, receiptItems });
-    alert('Recebimento finalizado com sucesso! Estoque atualizado.');
-    
-    // Limpar tela
-    setNfData({ numeroNF: '', fornecedor: '' });
-    setReceiptItems([]);
+    setIsSaving(true);
+
+    try {
+      // Atualiza cada produto no banco de dados local
+      for (const item of receiptItems) {
+        const currentProduct = await getProductById(item.product.id);
+        
+        if (currentProduct) {
+          await updateProduct(item.product.id, {
+            stock: currentProduct.stock + item.quantity, // Soma o estoque real
+            lote: item.lote,                             // Atualiza para a IA ler
+            validade: item.validade                      // Atualiza para a IA ler
+          });
+        }
+      }
+
+      alert('Recebimento finalizado com sucesso! O estoque e a IA foram atualizados.');
+      
+      // Limpa a tela após salvar
+      setNfData({ numeroNF: '', fornecedor: '' });
+      setReceiptItems([]);
+      loadProducts(); // Recarrega os produtos atualizados
+      
+    } catch (error) {
+      alert('Erro ao salvar o recebimento. Tente novamente.');
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -119,7 +145,7 @@ export default function RecebimentoPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-primary">Recebimento de Mercadorias</h1>
-          <p className="text-foreground/60 font-medium">Vincule entradas à Nota Fiscal e registre lotes para rastreabilidade.</p>
+          <p className="text-foreground/60 font-medium">Vincule entradas à Nota Fiscal e registre lotes para a Inteligência Artificial.</p>
         </div>
       </div>
 
@@ -197,7 +223,7 @@ export default function RecebimentoPage() {
                     <div className="mb-4 pb-4 border-b border-primary/10 flex items-center justify-between">
                       <div>
                         <h3 className="font-black text-lg text-primary">{selectedProduct.name}</h3>
-                        <p className="text-xs font-mono text-primary/50">SKU: {selectedProduct.sku}</p>
+                        <p className="text-xs font-mono text-primary/50">SKU: {selectedProduct.sku} | Estoque Atual: {selectedProduct.stock}</p>
                       </div>
                       <Badge variant="outline" className="bg-white border-primary/20">{selectedProduct.category}</Badge>
                     </div>
@@ -263,7 +289,7 @@ export default function RecebimentoPage() {
                 <div className="h-full flex flex-col items-center justify-center text-primary/30 text-center space-y-2 pt-10">
                   <Package className="w-12 h-12 stroke-[1]" />
                   <p className="font-bold text-sm">Nenhum produto adicionado</p>
-                  <p className="text-[10px] uppercase tracking-widest">BiPE UM ITEM PARA INICIAR</p>
+                  <p className="text-[10px] uppercase tracking-widest">BIPE UM ITEM PARA INICIAR</p>
                 </div>
               ) : (
                 receiptItems.map((item, index) => (
@@ -299,10 +325,10 @@ export default function RecebimentoPage() {
             <div className="p-5 border-t border-primary/5 bg-[#F8FAFC]">
               <Button 
                 onClick={handleFinalizeReceipt}
-                disabled={receiptItems.length === 0}
+                disabled={receiptItems.length === 0 || isSaving}
                 className="w-full py-6 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-[0.1em] gap-2"
               >
-                <Save className="w-5 h-5" /> Confirmar Entrada
+                <Save className="w-5 h-5" /> {isSaving ? 'Salvando...' : 'Confirmar Entrada'}
               </Button>
             </div>
           </Card>

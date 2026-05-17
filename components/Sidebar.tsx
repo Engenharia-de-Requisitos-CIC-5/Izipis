@@ -10,7 +10,9 @@ import {
   ShoppingCart, 
   ChevronLeft,
   Menu,
-  X
+  X,
+  FileText,
+  BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from './Logo';
@@ -18,7 +20,9 @@ import { IZIPISLogo } from './Logo';
 const MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
   { icon: Package, label: 'Estoque', href: '/admin/inventory' },
+  { icon: FileText, label: 'Recebimento', href: '/admin/recebimento' },
   { icon: ShoppingCart, label: 'Vendas', href: '/admin/sales' },
+  { icon: BrainCircuit, label: 'Izipis Predict', href: '/admin/ml' },
 ];
 
 export default function Sidebar() {

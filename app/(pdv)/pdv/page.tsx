@@ -4,16 +4,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
-  Plus, 
-  Minus, 
   CreditCard, 
   Banknote, 
   Barcode, 
   ShoppingCart, 
-  PackageX, 
   CheckCircle2, 
-  Trash2,
-  Keyboard,
   User,
   LogOut,
   Hash,
@@ -22,15 +17,18 @@ import {
   AlertTriangle,
   FileText,
   Wifi,
-  WifiOff
+  WifiOff,
+  Printer,
+  Lock,
+  Unlock,
+  Wallet
 } from 'lucide-react';
 import { getProducts } from '@/services/products';
-import { createSale } from '@/services/sales';
-import { Product } from '@/lib/types';
+import { createSale, getSales } from '@/services/sales';
+import { Product, Sale } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { IZIPISLogo } from '@/components/Logo';
 import { useRouter } from 'next/navigation';
@@ -46,6 +44,13 @@ interface IFoodOrder {
 
 export default function PDVPage() {
   const router = useRouter();
+  
+  // =========================================================================
+  // ESTADOS DO SISTEMA
+  // =========================================================================
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [initialCashInput, setInitialCashInput] = useState('');
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -55,10 +60,15 @@ export default function PDVPage() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [lastItem, setLastItem] = useState<Product | null>(null);
   
-  // Novos estados para atender aos requisitos
+  const [lastSaleDetails, setLastSaleDetails] = useState<any>(null);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
-  const [logs, setLogs] = useState<string[]>(['[SISTEMA] PDV inicializado com sucesso.']);
+  const [logs, setLogs] = useState<string[]>(['[SISTEMA] Aguardando abertura do caixa...']);
+  
+  // Estados do Fechamento de Caixa
+  const [showCloseRegister, setShowCloseRegister] = useState(false);
+  const [registerStats, setRegisterStats] = useState({ total: 0, money: 0, card: 0, pix: 0, count: 0, initialCash: 0 });
+
   const [ifoodOrders, setIfoodOrders] = useState<IFoodOrder[]>([
     {
       id: 'iFood-#1024',
@@ -85,7 +95,7 @@ export default function PDVPage() {
       try {
         const data = await getProducts();
         setProducts(data);
-        addLog('Produtos sincronizados com sucesso.');
+        addLog('Produtos sincronizados. Base pronta.');
       } catch (error) {
         addLog('Erro ao carregar produtos. Verifique a conexão.');
       } finally {
@@ -93,26 +103,35 @@ export default function PDVPage() {
       }
     }
     load();
-    searchInputRef.current?.focus();
   }, []);
 
-  // Atalhos de teclado globais
+  // Foca no input após abrir o caixa
+  useEffect(() => {
+    if (isRegisterOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [isRegisterOpen]);
+
+  // =========================================================================
+  // ATALHOS DE TECLADO GLOBAIS
+  // =========================================================================
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Bloqueia os atalhos se o caixa estiver fechado!
+      if (!isRegisterOpen) return;
+
       if (e.key === 'F1') {
         e.preventDefault();
         searchInputRef.current?.focus();
-        addLog('Atalho F1: Campo de busca focado.');
       }
       if (e.key === 'F2') {
         e.preventDefault();
-        if (cart.length > 0 && !isCheckingOut) {
-          handleCheckout();
-        }
+        if (cart.length > 0 && !isCheckingOut) handleCheckout();
       }
       if (e.key === 'F3') { e.preventDefault(); setPaymentMethod('money'); }
       if (e.key === 'F4') { e.preventDefault(); setPaymentMethod('card'); }
       if (e.key === 'F5') { e.preventDefault(); setPaymentMethod('pix'); }
+      
       if (e.key === 'F8') {
         e.preventDefault();
         if (selectedCartItemId) {
@@ -125,43 +144,52 @@ export default function PDVPage() {
               addLog(`Quantidade de ${item.product.name} alterada para ${qty}.`);
             }
           }
-        } else {
-          alert('Selecione um item no carrinho primeiro.');
         }
       }
+
+      if (e.key === 'F9') {
+        e.preventDefault();
+        handleOpenCloseRegister();
+      }
+
       if (e.key === 'Delete') {
         if (selectedCartItemId) {
           const item = cart.find(i => i.product.id === selectedCartItemId);
           if (item) {
             updateQuantity(selectedCartItemId, -item.quantity);
-            addLog(`Item ${item.product.name} removido do carrinho.`);
+            addLog(`Item removido: ${item.product.name}`);
             setSelectedCartItemId(null);
           }
         }
       }
+
       if (e.key === 'Escape') {
         if (showSuccess) setShowSuccess(false);
         if (isScannerOpen) setIsScannerOpen(false);
+        if (showCloseRegister) setShowCloseRegister(false);
       }
     };
-
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [cart, selectedCartItemId, paymentMethod, isCheckingOut, showSuccess, isScannerOpen]);
+  }, [isRegisterOpen, cart, selectedCartItemId, paymentMethod, isCheckingOut, showSuccess, isScannerOpen, showCloseRegister]);
+
+  // =========================================================================
+  // FUNÇÕES CORE DO PDV
+  // =========================================================================
+  const handleOpenRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(initialCashInput.replace(',', '.')) || 0;
+    
+    setRegisterStats(prev => ({ ...prev, initialCash: amount }));
+    setIsRegisterOpen(true);
+    addLog(`CAIXA ABERTO. Fundo de troco registrado: R$ ${amount.toFixed(2)}`);
+  };
 
   const handleAddToCart = (product: Product) => {
-    if (product.stock <= 0) {
-      addLog(`AVISO: Tentativa de adicionar ${product.name} sem estoque.`);
-      // Dependendo da regra de negócio, pode bloquear ou apenas avisar
-    }
-    if (product.stock > 0 && product.stock <= (product.minStock || 0)) {
-      addLog(`ALERTA: Estoque crítico atingido para ${product.name} (${product.stock} un).`);
-    }
-
     addToCart(product);
     setLastItem(product);
     setSelectedCartItemId(product.id);
-    addLog(`Adicionado: ${product.name} (SKU: ${product.sku})`);
+    addLog(`Adicionado: ${product.name}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -171,7 +199,7 @@ export default function PDVPage() {
         handleAddToCart(product);
         setSearchTerm('');
       } else {
-        addLog(`Produto não encontrado para o termo: ${searchTerm}`);
+        addLog(`Produto não encontrado: ${searchTerm}`);
       }
     }
   };
@@ -182,17 +210,29 @@ export default function PDVPage() {
     
     try {
       if (!isOffline) {
+        const saleItems = cart.map(item => ({
+          productId: item.product.id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price
+        }));
+
         await createSale({
-          items: cart.map(item => ({
-            productId: item.product.id,
-            name: item.product.name,
-            quantity: item.quantity,
-            price: item.product.price
-          })),
+          items: saleItems,
           total: totalPrice,
           paymentMethod: paymentMethod,
           source: 'LOCAL'
         });
+
+        setLastSaleDetails({
+          items: saleItems,
+          total: totalPrice,
+          paymentMethod: paymentMethod,
+          date: new Date().toLocaleString('pt-BR')
+        });
+
+        const updatedProducts = await getProducts();
+        setProducts(updatedProducts);
       } else {
         addLog('Venda salva em cache local (Modo Offline).');
       }
@@ -209,6 +249,204 @@ export default function PDVPage() {
     }
   };
 
+  // =========================================================================
+  // FECHAMENTO DE CAIXA E IMPRESSÃO (REDUÇÃO Z & CUPOM)
+  // =========================================================================
+  const handleOpenCloseRegister = async () => {
+    const allSales = await getSales();
+    const todayStr = new Date().toLocaleDateString('pt-BR');
+    
+    const todayLocalSales = allSales.filter(s => 
+      new Date(s.timestamp).toLocaleDateString('pt-BR') === todayStr && s.source === 'LOCAL'
+    );
+
+    let money = 0, card = 0, pix = 0, total = 0;
+    
+    todayLocalSales.forEach(s => {
+      total += s.total;
+      if (s.paymentMethod === 'money') money += s.total;
+      if (s.paymentMethod === 'card') card += s.total;
+      if (s.paymentMethod === 'pix') pix += s.total;
+    });
+
+    setRegisterStats(prev => ({ ...prev, total, money, card, pix, count: todayLocalSales.length }));
+    setShowCloseRegister(true);
+    addLog('Auditoria de Caixa (Redução Z) solicitada.');
+  };
+
+  const printZReport = () => {
+    const totalInDrawer = registerStats.initialCash + registerStats.money;
+
+    const reportContent = `
+      <html>
+      <head>
+        <title>Redução Z - Fechamento de Caixa</title>
+        <style>
+          @page { margin: 0; }
+          body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 300px; margin: 0 auto; padding: 15px; color: #000; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+          .flex-between { display: flex; justify-content: space-between; margin-bottom: 5px; }
+          .title { font-size: 16px; margin-bottom: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold title">MERCADINHO PEDRINHO 2</div>
+        <div class="center">RELATÓRIO GERENCIAL - REDUÇÃO Z</div>
+        <div class="center">Data: ${new Date().toLocaleString('pt-BR')}</div>
+        <div class="center">Operador: CAIXA 01</div>
+        
+        <div class="divider"></div>
+        <div class="center bold" style="margin-bottom: 10px;">RESUMO DE VENDAS</div>
+        
+        <div class="flex-between">
+          <span>Total de Vendas (Qtd):</span>
+          <span>${registerStats.count}</span>
+        </div>
+        <div class="divider"></div>
+        
+        <div class="flex-between">
+          <span>Dinheiro (Espécie):</span>
+          <span>R$ ${registerStats.money.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="flex-between">
+          <span>Cartão (Crédito/Débito):</span>
+          <span>R$ ${registerStats.card.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="flex-between">
+          <span>Transferência PIX:</span>
+          <span>R$ ${registerStats.pix.toFixed(2).replace('.', ',')}</span>
+        </div>
+        
+        <div class="divider"></div>
+        <div class="flex-between bold" style="font-size: 14px;">
+          <span>TOTAL VENDIDO:</span>
+          <span>R$ ${registerStats.total.toFixed(2).replace('.', ',')}</span>
+        </div>
+
+        <div class="divider"></div>
+        <div class="center bold" style="margin-bottom: 10px;">FLUXO DE GAVETA</div>
+        
+        <div class="flex-between">
+          <span>Fundo de Caixa (Abertura):</span>
+          <span>R$ ${registerStats.initialCash.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="flex-between">
+          <span>Vendas em Dinheiro:</span>
+          <span>+ R$ ${registerStats.money.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="divider"></div>
+        <div class="flex-between bold" style="font-size: 14px;">
+          <span>TOTAL NA GAVETA:</span>
+          <span>R$ ${totalInDrawer.toFixed(2).replace('.', ',')}</span>
+        </div>
+
+        <div class="divider"></div>
+        <div class="center" style="margin-top: 30px;">
+          _______________________________<br/>
+          Assinatura do Operador
+        </div>
+        <div class="center" style="margin-top: 20px;">FIM DO RELATÓRIO</div>
+        
+        <script>
+          window.onload = function() { window.print(); window.close(); }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (printWindow) {
+      printWindow.document.write(reportContent);
+      printWindow.document.close();
+      setShowCloseRegister(false);
+      addLog('Relatório de Redução Z impresso com sucesso.');
+      // Opcional: Se quiser que o caixa trave e exija nova abertura após o fechamento:
+      // setIsRegisterOpen(false); 
+      // setInitialCashInput('');
+    }
+  };
+
+  const printReceipt = () => {
+    if (!lastSaleDetails) return;
+    const paymentMap: Record<string, string> = { money: 'Dinheiro', card: 'Cartão', pix: 'PIX' };
+    const methodStr = paymentMap[lastSaleDetails.paymentMethod] || 'Desconhecido';
+
+    const receiptContent = `
+      <html>
+      <head>
+        <title>Cupom Fiscal</title>
+        <style>
+          @page { margin: 0; }
+          body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 300px; margin: 0 auto; padding: 15px; color: #000; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+          .flex-between { display: flex; justify-content: space-between; }
+          .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+          .item-name { width: 50%; }
+          .item-qty { width: 20%; text-align: center; }
+          .item-price { width: 30%; text-align: right; }
+          .total-section { font-size: 16px; margin-top: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold" style="font-size: 16px; margin-bottom: 5px;">MERCADINHO PEDRINHO 2</div>
+        <div class="center">Rua Maria do Socorro, 159</div>
+        <div class="center">CNPJ: 00.000.000/0001-00</div>
+        <div class="center">Data: ${lastSaleDetails.date}</div>
+        
+        <div class="divider"></div>
+        <div class="center bold">CUPOM NÃO FISCAL</div>
+        <div class="divider"></div>
+
+        <div class="flex-between bold" style="margin-bottom: 10px;">
+          <div class="item-name">ITEM</div>
+          <div class="item-qty">QTD</div>
+          <div class="item-price">VL TOTAL</div>
+        </div>
+
+        ${lastSaleDetails.items.map((item: any) => `
+          <div class="item-row">
+            <div class="item-name">${item.name}</div>
+            <div class="item-qty">${item.quantity}</div>
+            <div class="item-price">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
+          </div>
+        `).join('')}
+
+        <div class="divider"></div>
+        
+        <div class="flex-between total-section bold">
+          <div>TOTAL</div>
+          <div>R$ ${lastSaleDetails.total.toFixed(2).replace('.', ',')}</div>
+        </div>
+        
+        <div class="flex-between" style="margin-top: 5px;">
+          <div>FORMA PAGTO</div>
+          <div>${methodStr}</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="center" style="margin-top: 20px;">
+          *** OBRIGADO PELA PREFERÊNCIA ***<br/>
+          Volte Sempre!
+        </div>
+        
+        <script>
+          window.onload = function() { window.print(); window.close(); }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptContent);
+      printWindow.document.close();
+    }
+  };
+
   const handleProcessIfoodOrder = (orderId: string) => {
     const order = ifoodOrders.find(o => o.id === orderId);
     if (!order) return;
@@ -222,10 +460,6 @@ export default function PDVPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   const simulateScan = (sku: string) => {
     const product = products.find(p => p.sku === sku);
     if (product) {
@@ -234,8 +468,62 @@ export default function PDVPage() {
     }
   };
 
+  // =========================================================================
+  // RENDERIZAÇÃO
+  // =========================================================================
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background font-sans">
+    <div className="h-screen flex flex-col overflow-hidden bg-background font-sans relative">
+      
+      {/* TELA DE ABERTURA DE CAIXA (SOBREPÕE TUDO) */}
+      <AnimatePresence>
+        {!isRegisterOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute inset-0 z-[200] bg-primary flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
+            
+            <motion.div 
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              className="bg-white rounded-[2rem] p-10 max-w-md w-full shadow-2xl relative z-10 flex flex-col items-center"
+            >
+              <div className="w-20 h-20 bg-secondary/10 text-secondary rounded-2xl flex items-center justify-center mb-6 border border-secondary/20">
+                <Wallet className="w-10 h-10" />
+              </div>
+              <h1 className="text-3xl font-black text-primary uppercase tracking-tighter mb-2">Abertura de Caixa</h1>
+              <p className="text-primary/50 text-sm font-medium mb-8 text-center">Informe o Fundo de Troco atual da gaveta para iniciar as operações do dia.</p>
+              
+              <form onSubmit={handleOpenRegisterSubmit} className="w-full space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Valor em Gaveta (R$)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 font-black">R$</span>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      required
+                      autoFocus
+                      placeholder="0,00"
+                      value={initialCashInput}
+                      onChange={(e) => setInitialCashInput(e.target.value)}
+                      className="w-full bg-[#F8FAFC] border border-primary/10 rounded-2xl py-4 pl-12 pr-4 text-2xl text-primary font-black focus:ring-2 focus:ring-primary outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                
+                <Button type="submit" className="w-full py-6 h-14 bg-secondary hover:bg-secondary-dark text-white font-black uppercase tracking-widest gap-2 text-sm rounded-xl">
+                  <Unlock className="w-5 h-5" /> Iniciar Turno
+                </Button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="h-12 bg-primary text-white flex items-center justify-between px-6 border-b border-white/10 z-50">
         <div className="flex items-center gap-4">
           <IZIPISLogo variant="horizontal" color="monochrome-white" className="h-6" />
@@ -270,7 +558,7 @@ export default function PDVPage() {
             <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{new Date().toLocaleDateString('pt-BR')} | {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
           <button 
-            onClick={handleLogout}
+            onClick={() => logout()}
             className="p-1.5 hover:bg-danger/20 rounded transition-colors text-white/60 hover:text-white"
           >
             <LogOut className="w-4 h-4" />
@@ -550,10 +838,16 @@ export default function PDVPage() {
           { key: 'F4', label: 'Cartão' },
           { key: 'F5', label: 'PIX' },
           { key: 'F8', label: 'Quantidade' },
+          { key: 'F9', label: 'Fechar Caixa' },
           { key: 'DEL', label: 'Remover Item' },
-          { key: 'ESC', label: 'Sair/Fechar' },
         ].map((item) => (
-          <div key={item.key} className="flex items-center gap-2 whitespace-nowrap">
+          <div 
+            key={item.key} 
+            className="flex items-center gap-2 whitespace-nowrap cursor-pointer hover:opacity-80"
+            onClick={() => {
+              if (item.key === 'F9') handleOpenCloseRegister();
+            }}
+          >
             <kbd className="bg-primary/5 border border-primary/10 px-1.5 py-0.5 rounded text-[10px] font-black text-primary/60">{item.key}</kbd>
             <span className="text-[10px] font-bold text-primary/40 uppercase tracking-widest">{item.label}</span>
           </div>
@@ -642,7 +936,74 @@ export default function PDVPage() {
               <p className="text-primary/60 font-medium mb-8">O cupom fiscal foi enviado para a fila de impressão.</p>
               <div className="space-y-3">
                 <Button className="w-full py-6 font-bold" onClick={() => setShowSuccess(false)}>Próxima Venda (ESC / F2)</Button>
-                <Button variant="outline" className="w-full py-6 border-primary/10">Imprimir Segunda Via</Button>
+                <Button variant="outline" className="w-full py-6 border-primary/10 gap-2 flex items-center justify-center" onClick={printReceipt}>
+                  <Printer className="w-5 h-5" /> Imprimir Cupom Fiscal
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Modal de Fechamento de Caixa (Redução Z) */}
+        {showCloseRegister && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="absolute inset-0 z-[100] bg-primary/95 backdrop-blur-md flex items-center justify-center text-center p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <div className="bg-primary p-8 text-white relative">
+                <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/20">
+                  <Lock className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-black uppercase tracking-widest mb-1">Redução Z</h2>
+                <p className="text-white/60 text-xs font-bold uppercase tracking-widest">Fechamento de Caixa • {new Date().toLocaleDateString('pt-BR')}</p>
+              </div>
+              
+              <div className="p-8 bg-[#F8FAFC]">
+                <div className="space-y-4 mb-8">
+                  <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                    <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">Fundo (Abertura)</span>
+                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.initialCash)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                    <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">Dinheiro (Vendas)</span>
+                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.money)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                    <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">Cartão</span>
+                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.card)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                    <span className="text-primary/60 font-bold text-xs uppercase tracking-widest">PIX</span>
+                    <span className="text-primary font-black font-mono">{formatCurrency(registerStats.pix)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 bg-primary/5 px-4 rounded-xl mt-4">
+                    <span className="text-primary font-black uppercase tracking-widest">Total na Gaveta</span>
+                    <span className="text-primary font-black font-mono text-xl">{formatCurrency(registerStats.initialCash + registerStats.money)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full py-6 font-bold bg-danger hover:bg-danger/90 text-white gap-2 uppercase tracking-widest" 
+                    onClick={printZReport}
+                  >
+                    <Printer className="w-5 h-5" /> Imprimir e Fechar
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full py-6 text-primary/40 font-bold hover:bg-primary/5" 
+                    onClick={() => setShowCloseRegister(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

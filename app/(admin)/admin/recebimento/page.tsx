@@ -11,13 +11,15 @@ import {
   Calendar, 
   Trash2,
   Building2,
-  Save
+  Save,
+  UploadCloud
 } from 'lucide-react';
 import { getProducts, getProductById, updateProduct } from '@/services/products';
 import { Product } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils';
 
 interface ReceiptItem {
   product: Product;
@@ -31,6 +33,7 @@ export default function RecebimentoPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   // Dados da Nota Fiscal
   const [nfData, setNfData] = useState({
@@ -98,6 +101,51 @@ export default function RecebimentoPage() {
     setReceiptItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  // INTEGRAÇÃO DE LEITURA DE XML (SIMULADA)
+  const handleSimulateXmlImport = async () => {
+    setIsImporting(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    setNfData({
+      numeroNF: '3526 0512 3456 7890 1234 5500 1000 0001 2345 6789',
+      fornecedor: 'DISTRIBUIDORA ALIMENTAR SUL S/A'
+    });
+
+    const currentProducts = await getProducts();
+    
+    // Dados para disparar a IA na apresentação
+    const xmlItems = [
+      { sku: '78910001', name: 'Arroz Integral 1kg', quantity: 120, lote: 'LT-ARR-2026', validade: '2026-12-20' },
+      { sku: '78920001', name: 'Leite Integral 1L', quantity: 80, lote: 'LT-LEITE-A', validade: '2026-05-19' },
+      { sku: '78980001', name: 'Peito de Frango 1kg', quantity: 50, lote: 'LT-FRG-05', validade: '2026-06-01' }
+    ];
+
+    const newReceiptItems: ReceiptItem[] = xmlItems.map(item => {
+      let prod = currentProducts.find(p => p.sku === item.sku);
+      if (!prod) {
+        prod = {
+          id: `prod_${item.sku}`,
+          name: item.name,
+          sku: item.sku,
+          description: 'Importado via XML',
+          price: 0,
+          category: 'Geral',
+          stock: 0,
+          minStock: 10
+        };
+      }
+      return {
+        product: prod,
+        quantity: item.quantity,
+        lote: item.lote,
+        validade: item.validade
+      };
+    });
+
+    setReceiptItems(prev => [...prev, ...newReceiptItems]);
+    setIsImporting(false);
+  };
+
   // INTEGRAÇÃO REAL COM O BANCO DE DADOS (LOCALSTORAGE)
   const handleFinalizeReceipt = async () => {
     if (!nfData.numeroNF || !nfData.fornecedor) {
@@ -147,6 +195,14 @@ export default function RecebimentoPage() {
           <h1 className="text-4xl font-extrabold tracking-tight text-primary">Recebimento de Mercadorias</h1>
           <p className="text-foreground/60 font-medium">Vincule entradas à Nota Fiscal e registre lotes para a Inteligência Artificial.</p>
         </div>
+        <Button 
+          onClick={handleSimulateXmlImport}
+          disabled={isImporting || isSaving}
+          className="bg-primary hover:bg-primary-dark text-white font-black uppercase tracking-widest gap-2 h-12 px-6 rounded-xl border-none shadow-lg shadow-primary/10"
+        >
+          <UploadCloud className={cn("w-5 h-5", isImporting && "animate-bounce")} />
+          {isImporting ? 'LENDO XML DA NOTA...' : 'IMPORTAR NF-e (XML)'}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

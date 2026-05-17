@@ -1,5 +1,6 @@
 'use client';
 
+import { Badge } from '@/components/ui/Badge';
 import React, { useState, useEffect } from 'react';
 import { Calendar, Search, Download, ExternalLink, CreditCard, Banknote, QrCode, ArrowUpRight, TrendingUp } from 'lucide-react';
 import { getSales } from '@/services/sales';

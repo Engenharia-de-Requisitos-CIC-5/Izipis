@@ -12,7 +12,9 @@ import {
   ExternalLink,
   RefreshCw,
   CheckCircle2,
-  Clock
+  Clock,
+  Download,
+  X
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { StatCard } from '@/components/ui/StatCard';
@@ -43,7 +45,7 @@ export default function AdminDashboard() {
   const loadStats = async () => {
     const products = await getProducts();
     const salesStats = await getSalesStats();
-    const lowStock = products.filter(p => p.stock < 20).length;
+    const lowStock = products.filter(p => p.stock < (p.minStock || 20)).length;
     
     setStats({
       dailyRevenue: salesStats.totalRevenue,
@@ -101,11 +103,37 @@ export default function AdminDashboard() {
     await loadStats();
   };
 
+  // Nova função para atender ao requisito de Exportação de Relatórios
+  const handleExportCSV = () => {
+    if (stats.recentSales.length === 0) {
+      setNotification('Sem dados de vendas para exportar.');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    const headers = ['ID do Pedido,Origem,Total (R$),Data/Hora'];
+    const rows = stats.recentSales.map(sale => 
+      `${sale.id},${sale.source},${sale.total},${new Date(sale.timestamp).toLocaleString('pt-BR')}`
+    );
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `relatorio_izipis_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setNotification('Relatório CSV exportado com sucesso!');
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const statCards = [
     { label: 'Faturamento Total', value: stats.dailyRevenue, trend: '+12.5%', isPositive: true, icon: TrendingUp, iconColor: 'text-primary' },
     { label: 'Pedidos iFood', value: stats.ifoodSales, trend: 'Canal Online', isPositive: true, icon: ShoppingBag, iconColor: 'text-secondary' },
     { label: 'Vendas Balcão', value: stats.localSales, trend: 'Presencial', isPositive: true, icon: Users, iconColor: 'text-primary' },
-    { label: 'Estoque Crítico', value: stats.lowStockCount, trend: stats.lowStockCount > 5 ? 'Atenção' : 'Normal', isPositive: stats.lowStockCount <= 5, icon: AlertTriangle, iconColor: stats.lowStockCount > 5 ? 'text-danger' : 'text-accent' },
+    { label: 'Estoque Crítico', value: stats.lowStockCount, trend: stats.lowStockCount > 0 ? 'Atenção' : 'Normal', isPositive: stats.lowStockCount === 0, icon: AlertTriangle, iconColor: stats.lowStockCount > 0 ? 'text-danger' : 'text-accent' },
   ];
 
   return (
@@ -116,7 +144,7 @@ export default function AdminDashboard() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-success text-white px-6 py-3 rounded-2xl flex items-center gap-3 font-bold text-sm border border-success/20"
+            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-success text-white px-6 py-3 rounded-2xl flex items-center gap-3 font-bold text-sm border border-success/20 shadow-lg"
           >
             <CheckCircle2 className="w-5 h-5" />
             {notification}
@@ -130,6 +158,14 @@ export default function AdminDashboard() {
           <p className="text-foreground/60 font-medium text-xs md:text-sm">Gestão integrada: Balcão + iFood + Estoque.</p>
         </div>
         <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleExportCSV} 
+            className="h-10 px-4 rounded-xl border-primary/10 gap-2 font-bold text-[10px] uppercase tracking-widest hover:bg-primary/5"
+          >
+            <Download className="w-4 h-4 text-primary" />
+            Exportar Relatório
+          </Button>
           <Button 
             variant="outline" 
             onClick={simulateIfoodPolling} 

@@ -1,13 +1,3 @@
-export type UserRole = 'ADMIN' | 'VENDOR';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  avatar?: string;
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -15,8 +5,10 @@ export interface Product {
   price: number;
   category: string;
   stock: number;
-  image?: string;
   sku: string;
+  minStock?: number;
+  lote?: string;
+  validade?: string;
 }
 
 export interface SaleItem {
@@ -34,4 +26,13 @@ export interface Sale {
   timestamp: string;
   source: 'LOCAL' | 'IFOOD';
   customerName?: string;
+}
+
+export type UserRole = 'ADMIN' | 'VENDOR';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
 }

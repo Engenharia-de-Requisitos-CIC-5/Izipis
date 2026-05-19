@@ -29,6 +29,9 @@ export const IZIPISLogo: React.FC<LogoProps> = ({
     return '#0D3335'; // The "green" brand color
   };
 
+  const isProd = process.env.NODE_ENV === 'production';
+  const basePath = isProd ? '/Izipis' : '';
+
   // We use mask-image to allow dynamic coloring of the SVG
   return (
     <div 
@@ -39,8 +42,8 @@ export const IZIPISLogo: React.FC<LogoProps> = ({
       )}
       style={{
         backgroundColor: getBgColor(),
-        WebkitMaskImage: 'url(/logo.svg)',
-        maskImage: 'url(/logo.svg)',
+        WebkitMaskImage: `url(${basePath}/logo.svg)`,
+        maskImage: `url(${basePath}/logo.svg)`,
         WebkitMaskRepeat: 'no-repeat',
         maskRepeat: 'no-repeat',
         WebkitMaskPosition: 'center',

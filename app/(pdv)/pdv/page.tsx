@@ -571,7 +571,7 @@ export default function PDVPage() {
             <motion.div 
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
-              className="bg-white rounded-[2rem] p-10 max-w-md w-full shadow-2xl relative z-10 flex flex-col items-center"
+              className="bg-white rounded-2xl p-10 max-w-md w-full shadow-2xl relative z-10 flex flex-col items-center"
             >
               <div className="w-20 h-20 bg-secondary/10 text-secondary rounded-2xl flex items-center justify-center mb-6 border border-secondary/20">
                 <Wallet className="w-10 h-10" />
@@ -729,7 +729,7 @@ export default function PDVPage() {
                 </motion.div>
               ) : (
                 <div className="flex flex-col items-center text-center max-w-md">
-                  <div className="w-24 h-24 bg-white rounded-3xl border-2 border-primary/5 flex items-center justify-center mb-6">
+                  <div className="w-24 h-24 bg-white rounded-xl border-2 border-primary/5 flex items-center justify-center mb-6">
                     <Barcode className="w-10 h-10 text-primary/10" />
                   </div>
                   <h2 className="text-xl font-black text-primary/20 uppercase tracking-widest mb-2">Aguardando Operação</h2>
@@ -972,7 +972,7 @@ export default function PDVPage() {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+              className="max-w-md w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col"
             >
               <div className="p-6 bg-[#F8FAFC] border-b border-primary/5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1065,7 +1065,7 @@ export default function PDVPage() {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="max-w-2xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              className="max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
             >
               <div className="p-6 bg-[#F8FAFC] border-b border-primary/5 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
@@ -1126,7 +1126,7 @@ export default function PDVPage() {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="max-w-md w-full bg-white rounded-3xl p-10 shadow-2xl"
+              className="max-w-md w-full bg-white rounded-2xl p-10 shadow-2xl"
             >
               <div className="w-20 h-20 bg-secondary/10 text-secondary rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-10 h-10" />
@@ -1153,7 +1153,7 @@ export default function PDVPage() {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl"
+              className="max-w-md w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
             >
               <div className="bg-primary p-8 text-white relative">
                 <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/20">

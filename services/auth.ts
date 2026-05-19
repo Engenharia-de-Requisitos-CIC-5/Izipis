@@ -32,7 +32,9 @@ export async function login(email: string, password: string): Promise<User | nul
 export async function logout() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('izipis_user');
-    window.location.href = '/login';
+    const isProd = process.env.NODE_ENV === 'production';
+    const basePath = isProd ? '/Izipis' : '';
+    window.location.href = `${basePath}/login`;
   }
 }
 

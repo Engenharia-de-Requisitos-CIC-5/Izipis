@@ -50,7 +50,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md p-10 relative z-10 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] shadow-2xl shadow-primary/5"
+        className="w-full max-w-md p-10 relative z-10 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-2xl shadow-2xl shadow-primary/5"
       >
         <div className="text-center mb-10 flex flex-col items-center">
           <IZIPISLogo variant="principal" className="mb-2" />
@@ -67,7 +67,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/50 border border-primary/10 rounded-2xl py-3.5 pl-12 pr-4 text-foreground focus:ring-2 focus:ring-accent focus:border-transparent transition-all outline-none"
+                className="w-full bg-white/50 border border-primary/10 rounded-xl py-3.5 pl-12 pr-4 text-foreground focus:ring-2 focus:ring-accent focus:border-transparent transition-all outline-none"
                 placeholder="seu@email.com"
               />
             </div>
@@ -82,7 +82,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/50 border border-primary/10 rounded-2xl py-3.5 pl-12 pr-4 text-foreground focus:ring-2 focus:ring-accent focus:border-transparent transition-all outline-none"
+                className="w-full bg-white/50 border border-primary/10 rounded-xl py-3.5 pl-12 pr-4 text-foreground focus:ring-2 focus:ring-accent focus:border-transparent transition-all outline-none"
                 placeholder="••••••••"
               />
             </div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
             type="submit"
             disabled={isLoading}
             className={cn(
-              "w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-xl shadow-primary/20 hover:bg-secondary hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4",
+              "w-full bg-primary text-white font-bold py-4 rounded-xl shadow-xl shadow-primary/20 hover:bg-secondary hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4",
               isLoading && "opacity-80 cursor-not-allowed"
             )}
           >

@@ -226,7 +226,7 @@ export default function RecebimentoPage() {
                     value={nfData.numeroNF}
                     onChange={(e) => setNfData({...nfData, numeroNF: e.target.value})}
                     placeholder="Escaneie o código da NF"
-                    className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-3 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
+                    className="w-full bg-[#F1F5F9] border border-transparent rounded-xl py-3 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                   />
                 </div>
               </div>
@@ -239,7 +239,7 @@ export default function RecebimentoPage() {
                     value={nfData.fornecedor}
                     onChange={(e) => setNfData({...nfData, fornecedor: e.target.value})}
                     placeholder="Nome do fornecedor"
-                    className="w-full bg-[#F1F5F9] border border-transparent rounded-2xl py-3 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
+                    className="w-full bg-[#F1F5F9] border border-transparent rounded-xl py-3 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                   />
                 </div>
               </div>

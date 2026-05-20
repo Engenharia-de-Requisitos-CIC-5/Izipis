@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UserPlus, 
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const usersRef = useRef<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Form states
@@ -34,26 +35,28 @@ export default function UserManagementPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    loadUsers();
     setCurrentUser(getStoredUser());
-    // Polling: atualiza lista de usuários a cada 10 segundos
-    const interval = setInterval(() => {
-      loadUsers();
-    }, 5000);
-    return () => clearInterval(interval);
   }, []);
 
-  const loadUsers = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch (err) {
-      console.error('Erro ao carregar usuários:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const us = await getUsers();
+        if (!mounted) return;
+        usersRef.current = us;
+        setUsers(us);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    load();
+    return () => { mounted = false; };
+  }, []);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +81,8 @@ export default function UserManagementPage() {
       setName('');
       setEmail('');
       setMessage({ type: 'success', text: 'Novo usuário registrado com sucesso!' });
-      await loadUsers();
+      // refresh: reload users after creation
+      try { const us = await getUsers(); usersRef.current = us; setUsers(us); } catch (e) { console.error(e); }
     } catch (err) {
       setMessage({ type: 'error', text: 'Ocorreu um erro ao registrar o usuário.' });
     } finally {
@@ -97,7 +101,7 @@ export default function UserManagementPage() {
         const success = await deleteUser(userId);
         if (success) {
           setMessage({ type: 'success', text: 'Usuário removido com sucesso.' });
-          await loadUsers();
+          await refresh();
         } else {
           setMessage({ type: 'error', text: 'Erro ao remover o usuário.' });
         }

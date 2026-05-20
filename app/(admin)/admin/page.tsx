@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   DollarSign, 
@@ -14,7 +14,8 @@ import {
   Package,
   RefreshCw
 } from 'lucide-react';
-import { getSalesStats } from '@/services/sales';
+import { getSales, getSalesStats } from '@/services/sales';
+import { getPredictedStockoutRiskCount } from '@/lib/stockout';
 import { getProducts } from '@/services/products';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -45,39 +46,39 @@ export default function DashboardPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadDashboardData = async () => {
-    setIsLoading(true);
-    try {
-      // Busca dados reais do arquivo de vendas e estoque
-      const stats = await getSalesStats();
-      const products = await getProducts();
-      
-      // Calcula quantos produtos estão abaixo do estoque mínimo
-      const lowStock = products.filter(p => p.stock <= (p.minStock || 5)).length;
-
-      setData({
-        totalRevenue: stats.totalRevenue,
-        totalOrders: stats.totalOrders,
-        avgTicket: stats.avgTicket,
-        ifoodSales: stats.ifoodSales,
-        localSales: stats.localSales,
-        recentSales: stats.recentSales,
-        lowStockCount: lowStock
-      });
-    } catch (error) {
-      console.error('Erro ao carregar métricas do dashboard:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const fetchDashboard = async (): Promise<DashboardData> => {
+    const stats = await getSalesStats();
+    const products = await getProducts();
+    const sales = await getSales();
+    const lowStock = getPredictedStockoutRiskCount(products, sales);
+    return {
+      totalRevenue: stats.totalRevenue,
+      totalOrders: stats.totalOrders,
+      avgTicket: stats.avgTicket,
+      ifoodSales: stats.ifoodSales,
+      localSales: stats.localSales,
+      recentSales: stats.recentSales,
+      lowStockCount: lowStock
+    };
   };
 
   useEffect(() => {
-    loadDashboardData();
-    // Polling: atualiza o dashboard a cada 10 segundos para refletir vendas em tempo real
-    const interval = setInterval(() => {
-      loadDashboardData();
-    }, 5000);
-    return () => clearInterval(interval);
+    let mounted = true;
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const d = await fetchDashboard();
+        if (!mounted) return;
+        setData(d);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    load();
+    return () => { mounted = false; };
   }, []);
 
   // Proporção de vendas para os gráficos de barra nativos
@@ -94,7 +95,7 @@ export default function DashboardPage() {
           <p className="text-foreground/60 font-medium">Dados consolidados do caixa local e integração iFood em tempo real.</p>
         </div>
         <Button 
-          onClick={loadDashboardData} 
+          onClick={() => { setIsLoading(true); fetchDashboard().then(d => setData(d)).finally(() => setIsLoading(false)); }} 
           disabled={isLoading}
           variant="outline"
           className="border-primary/10 hover:bg-primary/5 font-bold gap-2 rounded-xl"
@@ -183,7 +184,7 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Ruptura / Estoque Baixo</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Ruptura Prevista / Estoque Baixo</p>
                 <h3 className={cn(
                   "text-3xl font-black font-mono tracking-tight tabular-nums",
                   data.lowStockCount > 0 ? "text-amber-600" : "text-primary"

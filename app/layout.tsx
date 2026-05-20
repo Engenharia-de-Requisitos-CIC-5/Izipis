@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat, Roboto } from "next/font/google";
 import "./globals.css";
+import DevSeed from '@/components/DevSeed';
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -29,7 +30,10 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${montserrat.variable} ${roboto.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {process.env.NODE_ENV === 'development' && <DevSeed />}
+        {children}
+      </body>
     </html>
   );
 }

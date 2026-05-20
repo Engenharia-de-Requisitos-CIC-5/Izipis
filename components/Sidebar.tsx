@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from './Logo';
+// load package.json dynamically in the client to avoid SSR/client import issues
 
 const MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
@@ -28,9 +29,26 @@ const MENU_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [pkgName, setPkgName] = useState('Izipis');
+  const [pkgVersion, setPkgVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const pkg = await import('../package.json');
+        if (!mounted) return;
+        setPkgName(pkg?.name ?? 'Izipis');
+        setPkgVersion(pkg?.version ?? null);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <>
@@ -88,41 +106,54 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-        {MENU_ITEMS.map((item) => {
-          const isActive = item.href === '/admin' 
-            ? pathname === '/admin' 
-            : pathname.startsWith(item.href);
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all cursor-pointer group relative",
-                  isActive 
-                    ? "bg-white/10 text-white shadow-sm" 
-                    : "text-white/40 hover:bg-white/5 hover:text-white"
-                )}
-              >
-                <item.icon className={cn(
-                  "w-5 h-5 transition-transform duration-300", 
-                  isActive ? "text-white" : "text-white/40 group-hover:scale-110",
-                  isCollapsed && "mx-auto"
-                )} />
-                
-                {!isCollapsed && (
-                  <span className="font-bold text-[13px] uppercase tracking-wider whitespace-nowrap overflow-hidden">
-                    {item.label}
-                  </span>
-                )}
-                
-                {isCollapsed && (
-                  <div className="absolute left-20 bg-primary text-white px-4 py-2 rounded-xl text-xs opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-200 whitespace-nowrap z-[100] shadow-2xl border border-white/10 font-bold uppercase tracking-widest">
-                    {item.label}
+        {(() => {
+          try {
+            return MENU_ITEMS.map((item) => {
+              const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+              return (
+                <Link key={item.href} href={item.href}>
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all cursor-pointer group relative",
+                      isActive ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <item.icon className={cn(
+                      "w-5 h-5 transition-transform duration-300",
+                      isActive ? "text-white" : "text-white/40 group-hover:scale-110",
+                      isCollapsed && "mx-auto"
+                    )} />
+
+                    {!isCollapsed && (
+                      <span className="font-bold text-[13px] uppercase tracking-wider whitespace-nowrap overflow-hidden">
+                        {item.label}
+                      </span>
+                    )}
+
+                    {isCollapsed && (
+                      <div className="absolute left-20 bg-primary text-white px-4 py-2 rounded-xl text-xs opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-200 whitespace-nowrap z-[100] shadow-2xl border border-white/10 font-bold uppercase tracking-widest">
+                        {item.label}
+                      </div>
+                    )}
                   </div>
-                )}
+                </Link>
+              );
+            });
+          } catch (err) {
+            // Prevent sidebar from disappearing on render errors; show fallback links
+            // eslint-disable-next-line no-console
+            console.error('Sidebar render error:', err);
+            return (
+              <div className="space-y-2">
+                {MENU_ITEMS.map(it => (
+                  <Link key={`fallback-${it.href}`} href={it.href}>
+                    <a className="block text-white/60 hover:text-white">{it.label}</a>
+                  </Link>
+                ))}
               </div>
-            </Link>
-          );
-        })}
+            );
+          }
+        })()}
       </nav>
 
       {/* Toggle Button */}
@@ -136,6 +167,17 @@ export default function Sidebar() {
           "group-hover:scale-125"
         )} />
       </button>
+
+      {/* Sidebar Footer: project name, version and rights */}
+      <div className={cn(
+        "px-4 py-3 border-t border-white/5 text-white/40 text-xs",
+        isCollapsed ? 'hidden' : 'block'
+      )}>
+        <div className="flex items-center justify-between">
+          <div className="font-bold text-[13px]">{pkgName} {pkgVersion && (<span className="font-mono text-[11px] ml-2">v{pkgVersion}</span>)}</div>
+        </div>
+        <div className="mt-1 text-[11px] text-white/40">© {new Date().getFullYear()} {pkgName}. Todos os direitos reservados.</div>
+      </div>
 
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {

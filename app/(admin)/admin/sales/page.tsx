@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Receipt, 
@@ -26,32 +26,35 @@ export default function SalesHistoryPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  
+  const salesRef = useRef<Sale[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const s = await getSales();
+        if (!mounted) return;
+        const sorted = s.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        salesRef.current = sorted;
+        setSales(sorted);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    load();
+    return () => { mounted = false; };
+  }, []);
+
   // Estado para o Modal de Detalhes do Cupom
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
-  useEffect(() => {
-    loadSales();
-    // Polling: atualiza vendas a cada 10 segundos para refletir novas transações em tempo real
-    const interval = setInterval(() => {
-      loadSales();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  
 
-  const loadSales = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getSales();
-      // Ordena da mais recente para a mais antiga
-      const sortedData = data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setSales(sortedData);
-    } catch (error) {
-      console.error("Erro ao carregar vendas", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
 
   const filteredSales = sales.filter(s => 
     s.id.toLowerCase().includes(searchTerm.toLowerCase()) || 

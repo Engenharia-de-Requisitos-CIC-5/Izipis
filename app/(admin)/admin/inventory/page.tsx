@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Package, 
@@ -26,6 +26,7 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const productsRef = useRef<Product[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -41,23 +42,28 @@ export default function InventoryPage() {
   });
 
   useEffect(() => {
-    loadProducts();
-    // Polling: atualiza estoque a cada 10 segundos para refletir vendas/recebimentos em tempo real
-    const interval = setInterval(() => {
-      loadProducts();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    let mounted = true;
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const prods = await getProducts();
+        if (!mounted) return;
+        productsRef.current = prods;
+        setProducts(prods);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
 
-  const loadProducts = async () => {
-    setIsLoading(true);
-    const data = await getProducts();
-    setProducts(data);
-    setIsLoading(false);
-  };
+    load();
+    return () => { mounted = false; };
+  }, []);
 
   const saveProductsToStorage = (updatedProducts: Product[]) => {
     localStorage.setItem('izipis_products', JSON.stringify(updatedProducts));
+    productsRef.current = updatedProducts;
     setProducts(updatedProducts);
   };
 

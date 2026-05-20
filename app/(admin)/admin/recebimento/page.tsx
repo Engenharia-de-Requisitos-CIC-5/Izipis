@@ -21,6 +21,29 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
+const getDefaultLote = (sku: string) => `LT-${sku.slice(-4)}-${new Date().getFullYear()}`;
+const getDefaultValidade = () => new Date(Date.now() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0];
+const areProductsEqual = (current: Product[], next: Product[]) => {
+  if (current.length !== next.length) return false;
+  const currentById = new Map(current.map(prod => [prod.id, prod]));
+  for (const prod of next) {
+    const existing = currentById.get(prod.id);
+    if (!existing) return false;
+    if (
+      existing.sku !== prod.sku ||
+      existing.name !== prod.name ||
+      existing.description !== prod.description ||
+      existing.category !== prod.category ||
+      existing.price !== prod.price ||
+      existing.stock !== prod.stock ||
+      existing.minStock !== prod.minStock
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 interface ReceiptItem {
   product: Product;
   quantity: number;
@@ -30,8 +53,8 @@ interface ReceiptItem {
 
 export default function RecebimentoPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const productsRef = useRef<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
@@ -51,23 +74,17 @@ export default function RecebimentoPage() {
     lote: '',
     validade: ''
   });
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [manualSkuInput, setManualSkuInput] = useState('');
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    loadProducts();
-    // Polling: atualiza catálogo a cada 10 segundos
-    const interval = setInterval(() => {
-      loadProducts();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadProducts = async () => {
-    setIsLoading(true);
+  async function loadProducts() {
     const data = await getProducts();
-    setProducts(data);
-    setIsLoading(false);
+    if (!areProductsEqual(productsRef.current, data)) {
+      productsRef.current = data;
+      setProducts(data);
+    }
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -79,8 +96,8 @@ export default function RecebimentoPage() {
           setSelectedProduct(prod);
           setItemForm({
             quantity: qty || '1',
-            lote: `LT-${prod.sku.slice(-4)}-${new Date().getFullYear()}`,
-            validade: new Date(Date.now() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0]
+            lote: getDefaultLote(prod.sku),
+            validade: getDefaultValidade()
           });
           setNfData({
             numeroNF: `NFE-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -89,7 +106,15 @@ export default function RecebimentoPage() {
         }
       }
     }
-  };
+  }
+
+  useEffect(() => {
+    const initialize = async () => {
+      await loadProducts();
+    };
+    initialize();
+    return () => undefined;
+  }, []);
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchTerm) {
@@ -125,6 +150,36 @@ export default function RecebimentoPage() {
 
   const handleRemoveItem = (index: number) => {
     setReceiptItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setSearchTerm('');
+    setItemForm({
+      quantity: '1',
+      lote: getDefaultLote(product.sku),
+      validade: getDefaultValidade()
+    });
+  };
+
+  const simulateScan = (sku: string) => {
+    const product = products.find(p => p.sku === sku);
+    if (product) {
+      handleSelectProduct(product);
+      setIsScannerOpen(false);
+    }
+  };
+
+  const handleManualScanSubmit = () => {
+    if (!manualSkuInput.trim()) return;
+    const product = products.find(p => p.sku === manualSkuInput.trim());
+    if (product) {
+      handleSelectProduct(product);
+      setManualSkuInput('');
+      setIsScannerOpen(false);
+    } else {
+      alert('Produto com este código (SKU) não foi encontrado.');
+    }
   };
 
   // INTEGRAÇÃO DE LEITURA DE XML (SIMULADA)
@@ -251,7 +306,7 @@ export default function RecebimentoPage() {
                     type="text" 
                     value={nfData.numeroNF}
                     onChange={(e) => setNfData({...nfData, numeroNF: e.target.value})}
-                    placeholder="Escaneie o código da NF"
+                    placeholder="Digite o código da NF"
                     className="w-full bg-[#F1F5F9] border border-transparent rounded-xl py-3 pl-12 pr-4 text-primary font-bold focus:ring-2 focus:ring-primary focus:bg-white transition-all outline-none"
                   />
                 </div>
@@ -280,17 +335,28 @@ export default function RecebimentoPage() {
             </h2>
             
             <div className="space-y-4">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/30 w-5 h-5 group-focus-within:text-primary transition-colors" />
-                <input 
-                  ref={searchInputRef}
-                  type="text" 
-                  placeholder="Escaneie o código do produto ou digite o SKU (Aperte Enter)" 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)} 
-                  onKeyDown={handleSearchKeyDown}
-                  className="w-full bg-white border border-primary/20 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-bold" 
-                />
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+                <div className="relative flex-1 group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/30 w-5 h-5 group-focus-within:text-primary transition-colors" />
+                  <input 
+                    ref={searchInputRef}
+                    type="text" 
+                    placeholder="Escaneie o código do produto ou digite o SKU (Aperte Enter)" 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    onKeyDown={handleSearchKeyDown}
+                    className="w-full bg-white border border-primary/20 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-bold" 
+                  />
+                </div>
+                <Button 
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="gap-2 h-10 px-4 border-primary/10 hover:bg-primary/5 group"
+                >
+                  <Barcode className="w-4 h-4 text-secondary group-hover:scale-110 transition-transform" />
+                  <span>Ativar Leitor</span>
+                </Button>
               </div>
 
               <AnimatePresence>
@@ -416,6 +482,82 @@ export default function RecebimentoPage() {
           </Card>
         </div>
       </div>
+      {isScannerOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }} 
+          className="absolute inset-0 z-[100] bg-primary/95 backdrop-blur-md flex items-center justify-center p-8"
+        >
+          <motion.div
+            initial={{ scale: 0.95, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className="max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+          >
+            <div className="p-6 bg-[#F8FAFC] border-b border-primary/5 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <Barcode className="w-6 h-6 text-secondary" />
+                <h2 className="text-xl font-black text-primary uppercase tracking-tight">Leitor de Código</h2>
+              </div>
+              <Button variant="ghost" onClick={() => setIsScannerOpen(false)}>Fechar</Button>
+            </div>
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 overflow-hidden">
+              <div className="space-y-4">
+                <div className="aspect-square bg-black rounded-2xl relative overflow-hidden flex items-center justify-center border-4 border-secondary/20">
+                  <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+                  <Barcode className="w-32 h-32 text-white/10" />
+                  <div className="absolute inset-x-0 top-1/2 h-1 bg-secondary shadow-[0_0_15px_rgba(var(--secondary-rgb),0.5)] animate-scan" />
+                  <div className="absolute inset-0 border-[40px] border-black/40" />
+                </div>
+                <p className="text-center text-xs font-bold text-primary/40 uppercase tracking-widest">Aponte o código para o leitor ou digite abaixo</p>
+              </div>
+              <div className="flex flex-col min-h-0">
+                <div className="mb-4 space-y-2">
+                  <label className="text-xs font-bold text-primary/60 uppercase tracking-wider block">Digitar Código (SKU)</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 78960002"
+                      value={manualSkuInput}
+                      onChange={(e) => setManualSkuInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleManualScanSubmit();
+                        }
+                      }}
+                      className="flex-1 bg-white border border-primary/10 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all font-sans"
+                    />
+                    <Button 
+                      onClick={handleManualScanSubmit}
+                      className="bg-secondary text-white hover:bg-secondary/90 px-4 rounded-xl text-xs font-black uppercase tracking-widest"
+                    >
+                      Bipar
+                    </Button>
+                  </div>
+                </div>
+                <h3 className="font-bold text-primary mb-2">Seleção Rápida:</h3>
+                <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                  {products.map(product => (
+                    <button
+                      key={product.id}
+                      onClick={() => simulateScan(product.sku)}
+                      className="w-full text-left p-3 rounded-xl border border-primary/5 hover:border-secondary hover:bg-secondary/5 transition-all group flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="font-bold text-sm text-primary group-hover:text-secondary">{product.name}</p>
+                        <p className="text-[10px] font-mono text-primary/40">{product.sku}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-bold text-primary text-sm">QTD no estoque: {product.stock}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

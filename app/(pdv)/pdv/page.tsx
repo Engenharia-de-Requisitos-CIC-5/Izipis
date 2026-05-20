@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { getProducts } from '@/services/products';
 import { createSale, getSales } from '@/services/sales';
+import { pollNewOrders } from '@/services/ifood';
 import { Product, Sale, User as UserType } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useCart } from '@/hooks/useCart';
@@ -123,6 +124,53 @@ export default function PDVPage() {
     }
     load();
   }, []);
+
+  // Polling dinâmico para simular novos pedidos do iFood em tempo real no PDV
+  useEffect(() => {
+    if (!isRegisterOpen) return;
+
+    let active = true;
+    const intervalId = setInterval(async () => {
+      try {
+        const newOrders = await pollNewOrders();
+        if (!active) return;
+        if (newOrders && newOrders.length > 0) {
+          const newMapped = newOrders.map(raw => {
+            return {
+              id: `iFood-#${raw.displayId}`,
+              customer: raw.customer.name,
+              items: raw.items.map(item => {
+                const realProd = products.find(p => p.id === item.id);
+                return {
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.unitPrice,
+                  sku: realProd ? realProd.sku : ''
+                };
+              }),
+              total: raw.total.orderAmount,
+              status: 'PENDING' as const
+            };
+          });
+          setIfoodOrders(prev => {
+            const filteredMapped = newMapped.filter(n => !prev.some(p => p.id === n.id));
+            if (filteredMapped.length > 0) {
+              addLog(`iFood: Novo pedido recebido! ${filteredMapped.map(x => x.id).join(', ')}`);
+              return [...filteredMapped, ...prev];
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error('Erro no polling do iFood:', err);
+      }
+    }, 10000); // Roda a cada 10 segundos
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [isRegisterOpen, products]);
 
   useEffect(() => {
     if (isRegisterOpen && !showDrawerModal && !showCloseRegister) {

@@ -83,17 +83,23 @@ export default function SalesHistoryPage() {
   const handleExportReport = () => {
     const headers = ['ID da Venda', 'Data/Hora', 'Origem/Canal', 'Forma de Pagamento', 'Itens', 'Total'];
     const rows = filteredSales.map(s => [
-      s.id,
-      new Date(s.timestamp).toLocaleString('pt-BR'),
-      s.source === 'IFOOD' ? 'iFood' : 'Balcão',
-      getPaymentName(s.paymentMethod),
+      `"${s.id}"`,
+      `"${new Date(s.timestamp).toLocaleString('pt-BR')}"`,
+      `"${s.source === 'IFOOD' ? 'iFood' : 'Balcão'}"`,
+      `"${getPaymentName(s.paymentMethod)}"`,
       s.items.reduce((acc, item) => acc + item.quantity, 0),
-      formatCurrency(s.total)
+      // Formatamos o valor sem 'R$' e sem espaços invisíveis (NBSP) para o Excel reconhecer como número.
+      s.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     ]);
     
     // Configura delimitador ';' e 'sep=;' no topo para o Excel nacional abrir em colunas automaticamente.
-    const csvContent = "sep=;\n" + [headers.join(';'), ...rows.map(e => e.map(val => `"${val}"`).join(';'))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = "sep=;\n" + [
+      headers.map(h => `"${h}"`).join(';'), 
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+    
+    // Adiciona o BOM (\uFEFF) para garantir que caracteres UTF-8 (ex: acentos) sejam lidos corretamente pelo Excel
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);

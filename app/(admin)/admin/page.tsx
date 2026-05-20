@@ -92,7 +92,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-primary">Dashboard Principal</h1>
-          <p className="text-foreground/60 font-medium">Dados consolidados do caixa local e integração iFood em tempo real.</p>
+          <p className="text-foreground/60 font-medium">Dados consolidados do caixa local e conexão iFood em tempo real.</p>
         </div>
         <Button 
           onClick={() => { setIsLoading(true); fetchDashboard().then(d => setData(d)).finally(() => setIsLoading(false)); }} 

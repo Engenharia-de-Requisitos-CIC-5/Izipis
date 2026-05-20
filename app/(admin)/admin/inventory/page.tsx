@@ -42,6 +42,11 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadProducts();
+    // Polling: atualiza estoque a cada 10 segundos para refletir vendas/recebimentos em tempo real
+    const interval = setInterval(() => {
+      loadProducts();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadProducts = async () => {

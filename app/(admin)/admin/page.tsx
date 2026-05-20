@@ -73,6 +73,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
+    // Polling: atualiza o dashboard a cada 10 segundos para refletir vendas em tempo real
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // Proporção de vendas para os gráficos de barra nativos
@@ -168,9 +173,13 @@ export default function DashboardPage() {
 
         {/* Card 4: Alertas de Estoque */}
         <Card className={cn(
-          "border-transparent shadow-sm transition-colors",
-          data.lowStockCount > 0 ? "bg-amber-500/5 border-amber-500/20" : "bg-white border-primary/5"
+          "border-primary/5 shadow-sm bg-white overflow-hidden relative group transition-all duration-300",
+          data.lowStockCount > 0 && "hover:border-amber-500/30"
         )}>
+          {/* Subtle warning accent bar on the left when there is low stock */}
+          {data.lowStockCount > 0 && (
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
+          )}
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div className="space-y-2">
@@ -183,17 +192,31 @@ export default function DashboardPage() {
                 </h3>
               </div>
               <div className={cn(
-                "p-3 rounded-xl",
-                data.lowStockCount > 0 ? "bg-amber-500/10 text-amber-600" : "bg-primary/5 text-primary/40"
+                "p-3 rounded-xl transition-all duration-300",
+                data.lowStockCount > 0 
+                  ? "bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white" 
+                  : "bg-primary/5 text-primary/40 group-hover:bg-primary group-hover:text-white"
               )}>
-                {data.lowStockCount > 0 ? <AlertTriangle className="w-5 h-5" /> : <Package className="w-5 h-5" />}
+                {data.lowStockCount > 0 ? (
+                  <AlertTriangle className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+                ) : (
+                  <Package className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+                )}
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-1 text-xs font-bold">
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-medium text-primary/40">
               {data.lowStockCount > 0 ? (
-                <span className="text-amber-600 uppercase tracking-wider">Ação Recomendada no Izipis Predict</span>
+                <>
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="font-bold text-amber-600">Ação recomendada</span>
+                  <span>no Izipis Predict.</span>
+                </>
               ) : (
-                <span className="text-emerald-600">Todos os produtos abastecidos</span>
+                <>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                  <span className="font-bold text-emerald-600">Tudo abastecido</span>
+                  <span>sem alertas.</span>
+                </>
               )}
             </div>
           </CardContent>

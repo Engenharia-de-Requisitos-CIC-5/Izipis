@@ -56,6 +56,11 @@ export default function RecebimentoPage() {
 
   useEffect(() => {
     loadProducts();
+    // Polling: atualiza catálogo a cada 10 segundos
+    const interval = setInterval(() => {
+      loadProducts();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadProducts = async () => {
@@ -63,6 +68,27 @@ export default function RecebimentoPage() {
     const data = await getProducts();
     setProducts(data);
     setIsLoading(false);
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const sku = params.get('sku');
+      const qty = params.get('qty');
+      if (sku) {
+        const prod = data.find(p => p.sku === sku);
+        if (prod) {
+          setSelectedProduct(prod);
+          setItemForm({
+            quantity: qty || '1',
+            lote: `LT-${prod.sku.slice(-4)}-${new Date().getFullYear()}`,
+            validade: new Date(Date.now() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0]
+          });
+          setNfData({
+            numeroNF: `NFE-${Math.floor(100000 + Math.random() * 900000)}`,
+            fornecedor: 'DISTRIBUIDORA ALIMENTAR S.A.'
+          });
+        }
+      }
+    }
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {

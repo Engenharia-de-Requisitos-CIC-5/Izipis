@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   FileText,
-  BrainCircuit
+  BrainCircuit,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IZIPISLogo } from './Logo';
@@ -23,6 +24,7 @@ const MENU_ITEMS = [
   { icon: FileText, label: 'Recebimento', href: '/admin/recebimento' },
   { icon: ShoppingCart, label: 'Vendas', href: '/admin/sales' },
   { icon: BrainCircuit, label: 'Izipis Predict', href: '/admin/ml' },
+  { icon: Users, label: 'Usuários', href: '/admin/users' },
 ];
 
 export default function Sidebar() {

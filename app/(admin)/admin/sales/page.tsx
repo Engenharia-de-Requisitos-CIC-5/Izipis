@@ -81,25 +81,48 @@ export default function SalesHistoryPage() {
   };
 
   const handleExportReport = () => {
-    const headers = ['ID da Venda', 'Data/Hora', 'Origem/Canal', 'Forma de Pagamento', 'Itens', 'Total'];
-    const rows = filteredSales.map(s => [
-      `"${s.id}"`,
-      `"${new Date(s.timestamp).toLocaleString('pt-BR')}"`,
-      `"${s.source === 'IFOOD' ? 'iFood' : 'Balcão'}"`,
-      `"${getPaymentName(s.paymentMethod)}"`,
-      s.items.reduce((acc, item) => acc + item.quantity, 0),
-      // Formatamos o valor sem 'R$' e sem espaços invisíveis (NBSP) para o Excel reconhecer como número.
-      s.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    ]);
-    
+    const headers = ['ID da Venda', 'Data/Hora', 'Origem/Canal', 'Forma de Pagamento', 'Itens', 'Total (R$)'];
+    const rows = filteredSales.map(s => {
+      // Garante que a quantidade de itens seja sempre um inteiro
+      const totalItems = Math.round(s.items.reduce((acc, item) => acc + item.quantity, 0));
+      // Formata o total com sempre 2 casas decimais, sem R$ e sem NBSP, para o Excel reconhecer como número
+      const totalFormatted = s.total.toFixed(2).replace('.', ',');
+      return [
+        `"${s.id}"`,
+        `"${new Date(s.timestamp).toLocaleString('pt-BR')}"`,
+        `"${s.source === 'IFOOD' ? 'iFood' : 'Balcao'}"`,  // sem acento para evitar encoding
+        `"${getPaymentName(s.paymentMethod)}"`,
+        totalItems,
+        totalFormatted
+      ];
+    });
+
     // Configura delimitador ';' e 'sep=;' no topo para o Excel nacional abrir em colunas automaticamente.
-    const csvContent = "sep=;\n" + [
-      headers.map(h => `"${h}"`).join(';'), 
+    const csvLines = [
+      "sep=;",
+      headers.map(h => `"${h}"`).join(';'),
       ...rows.map(row => row.join(';'))
-    ].join('\n');
-    
-    // Adiciona o BOM (\uFEFF) para garantir que caracteres UTF-8 (ex: acentos) sejam lidos corretamente pelo Excel
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    ].join('\r\n'); // \r\n para compatibilidade máxima com Excel no Windows
+
+    // Converte para Windows-1252 (ANSI) — codificação padrão do Excel no Brasil.
+    // Isso evita o problema de "BalcÃ£o" que ocorre quando o BOM UTF-8 é ignorado.
+    const win1252 = Array.from(csvLines).map(ch => {
+      const code = ch.charCodeAt(0);
+      // Mapeamento dos caracteres portugueses mais comuns para Windows-1252
+      const map: Record<number, number> = {
+        0xE3: 0xE3, 0xE0: 0xE0, 0xE1: 0xE1, 0xE2: 0xE2, // ã à á â
+        0xC3: 0xC3, 0xC0: 0xC0, 0xC1: 0xC1, 0xC2: 0xC2, // Ã À Á Â
+        0xE9: 0xE9, 0xEA: 0xEA, 0xC9: 0xC9, 0xCA: 0xCA, // é ê É Ê
+        0xED: 0xED, 0xCD: 0xCD,                           // í Í
+        0xF3: 0xF3, 0xF4: 0xF4, 0xF5: 0xF5,              // ó ô õ
+        0xD3: 0xD3, 0xD4: 0xD4, 0xD5: 0xD5,              // Ó Ô Õ
+        0xFA: 0xFA, 0xDA: 0xDA,                           // ú Ú
+        0xE7: 0xE7, 0xC7: 0xC7,                           // ç Ç
+      };
+      return map[code] !== undefined ? map[code] : (code < 256 ? code : 63); // '?' para outros
+    });
+    const bytes = new Uint8Array(win1252);
+    const blob = new Blob([bytes], { type: 'text/csv;charset=windows-1252;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);

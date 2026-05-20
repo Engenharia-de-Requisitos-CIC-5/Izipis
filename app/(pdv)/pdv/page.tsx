@@ -739,7 +739,7 @@ export default function PDVPage() {
               <div className="bg-white rounded-xl border border-primary/10 overflow-hidden flex flex-col">
                 <div className="bg-rose-50 border-b border-rose-100 p-2 flex items-center justify-between">
                   <span className="text-rose-600 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2">
-                    <ShoppingBag className="w-3 h-3" /> Integração iFood (API)
+                    <ShoppingBag className="w-3 h-3" /> Conexão iFood (API)
                   </span>
                   <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>

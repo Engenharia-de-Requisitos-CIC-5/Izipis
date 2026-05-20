@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BrainCircuit, 
@@ -19,9 +20,11 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { getProducts } from '@/services/products';
+import { activePredictProducts } from '@/services/mockPredictData';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Product } from '@/lib/types';
+import { updateProduct, getProducts } from '@/services/products';
+import { getSales } from '@/services/sales';
 
 // Interfaces para os resultados da IA
 interface ExpiryPrediction {
@@ -43,6 +46,7 @@ interface DemandPrediction {
 }
 
 export default function MLInsightsPage() {
+  const router = useRouter();
   const [expiryPredictions, setExpiryPredictions] = useState<ExpiryPrediction[]>([]);
   const [demandPredictions, setDemandPredictions] = useState<DemandPrediction[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -53,12 +57,64 @@ export default function MLInsightsPage() {
     savedValue: 0
   });
 
+  const handleApplyDiscount = async (productId: string, productName: string, originalPrice: number, discount: number) => {
+    const newPrice = Number((originalPrice * (1 - discount / 100)).toFixed(2));
+    const success = await updateProduct(productId, { price: newPrice });
+    if (success) {
+      alert(`Desconto de ${discount}% aplicado no ${productName}! Novo preço de venda: R$ ${newPrice.toFixed(2).replace('.', ',')}`);
+      runPredictionModel();
+    } else {
+      alert('Erro ao aplicar desconto.');
+    }
+  };
+
+  const handlePurchaseRedirect = (sku: string, quantity: number) => {
+    router.push(`/admin/recebimento?sku=${sku}&qty=${quantity}`);
+  };
+
   // =========================================================================
   // MOTOR MULTI-CAMADA DE MACHINE LEARNING (SIMULADO)
   // =========================================================================
   const runPredictionModel = async () => {
     setIsAnalyzing(true);
-    const products = await getProducts();
+    
+    // Carrega produtos reais do banco de dados (localStorage)
+    const dbProducts = await getProducts();
+    const dbSales = await getSales();
+    
+    // Mapeia os produtos acoplando a velocidade de venda calculada em tempo real com base no histórico de cupons
+    const products = dbProducts.map(dbProd => {
+      const mockProd = activePredictProducts.find(m => m.sku === dbProd.sku);
+      const mockVelocity = mockProd ? mockProd.salesVelocity : 1.2;
+
+      // Filtra vendas deste produto na base
+      const itemSales = dbSales.flatMap(s => 
+        s.items.filter(item => item.productId === dbProd.id).map(item => ({
+          qty: item.quantity,
+          timestamp: s.timestamp
+        }))
+      );
+
+      let calculatedVelocity = mockVelocity;
+      if (itemSales.length > 0) {
+        const totalSold = itemSales.reduce((acc, sale) => acc + sale.qty, 0);
+        const timestamps = itemSales.map(s => new Date(s.timestamp).getTime());
+        const minTime = Math.min(...timestamps);
+        const maxTime = Date.now();
+        const diffDays = Math.max(1, Math.ceil((maxTime - minTime) / (1000 * 3600 * 24)));
+        const realAvg = totalSold / diffDays;
+        
+        // Suavização Exponencial (Peso 70% para vendas reais do PDV, 30% para a estimativa base do cenário)
+        calculatedVelocity = Number((0.7 * realAvg + 0.3 * mockVelocity).toFixed(1));
+        if (calculatedVelocity < 0.1) calculatedVelocity = 0.1; // evita divisão por zero
+      }
+
+      return {
+        ...dbProd,
+        salesVelocity: calculatedVelocity
+      };
+    }).filter(p => p.category === 'Laticínios' || p.category === 'Congelados' || p.category === 'Açougue' || p.category === 'Padaria' || p.validade);
+
     await new Promise(resolve => setTimeout(resolve, 1800)); // Simula processamento pesado
 
     const expiryResults: ExpiryPrediction[] = [];
@@ -71,14 +127,8 @@ export default function MLInsightsPage() {
     const today = new Date();
 
     products.forEach(product => {
-      // --- 1. SIMULAÇÃO DE GIRO (VELOCIDADE DE VENDA) ---
-      // Na vida real, a IA leria a tabela de Vendas. Aqui usamos uma heurística baseada na categoria.
-      let baseVelocity = 1.5; 
-      if (product.category === 'Laticínios') baseVelocity = 3.5;
-      if (product.category === 'Hortifruti') baseVelocity = 5.0;
-      if (product.category === 'Padaria') baseVelocity = 8.0;
-      
-      const salesVelocity = Math.max(0.5, baseVelocity + (Math.random() * 2 - 1));
+      // --- 1. GIRO (VELOCIDADE DE VENDA) ---
+      const salesVelocity = product.salesVelocity;
       const daysToSellOut = product.stock / salesVelocity;
 
       // =================================================================
@@ -90,29 +140,39 @@ export default function MLInsightsPage() {
         const daysToExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
         let riskScore = 0;
-        if (daysToExpiry <= 0) {
-          riskScore = 100;
-        } else {
-          riskScore = (daysToSellOut / daysToExpiry) * 100;
-        }
-        riskScore = Math.min(100, Math.max(0, riskScore));
-
         let suggestedAction = "Estoque Saudável - Manter Preço";
         let suggestedDiscount = 0;
 
-        if (riskScore > 85) {
-          suggestedAction = "Liquidação Imediata";
-          suggestedDiscount = 40;
+        if (daysToExpiry < 0) {
+          riskScore = 100;
+          suggestedAction = "Retirar de Exposição (Vencido)";
+          suggestedDiscount = 0;
           expiryRiskCount++;
           lossRisk += (product.price * product.stock);
-        } else if (riskScore > 60) {
-          suggestedAction = "Promoção Preventiva";
-          suggestedDiscount = 15;
+        } else if (daysToExpiry === 0) {
+          riskScore = 100;
+          suggestedAction = "Vence Hoje - Retirar";
+          suggestedDiscount = 0;
           expiryRiskCount++;
           lossRisk += (product.price * product.stock);
-        } else if (riskScore > 40) {
-          suggestedAction = "Monitorar Saída";
-          suggestedDiscount = 5;
+        } else {
+          riskScore = (daysToSellOut / daysToExpiry) * 100;
+          riskScore = Math.min(100, Math.max(0, riskScore));
+
+          if (riskScore > 85) {
+            suggestedAction = "Liquidação Imediata";
+            suggestedDiscount = 40;
+            expiryRiskCount++;
+            lossRisk += (product.price * product.stock);
+          } else if (riskScore > 60) {
+            suggestedAction = "Promoção Preventiva";
+            suggestedDiscount = 15;
+            expiryRiskCount++;
+            lossRisk += (product.price * product.stock);
+          } else if (riskScore > 40) {
+            suggestedAction = "Monitorar Saída";
+            suggestedDiscount = 5;
+          }
         }
 
         expiryResults.push({
@@ -123,28 +183,26 @@ export default function MLInsightsPage() {
       // =================================================================
       // MODELO 2: PREVISÃO DE DEMANDA E RUPTURA (FALTA DE ESTOQUE)
       // =================================================================
-      // Assumindo que o Lead Time (tempo pro fornecedor entregar) seja de 7 dias
       const leadTime = 7; 
       let stockoutRisk = 0;
       let status: DemandPrediction['status'] = 'SAUDAVEL';
       
-      // Quantas unidades a IA sugere comprar para cobrir 15 dias de vendas?
       const targetStockFor15Days = Math.ceil(salesVelocity * 15);
       let suggestedPurchase = 0;
 
       if (daysToSellOut <= leadTime) {
-        // Se acaba antes do fornecedor chegar, é CRÍTICO!
-        stockoutRisk = 90 + Math.random() * 10;
+        // Se acaba antes do lead time, é CRÍTICO (cálculo determinístico)
+        stockoutRisk = 90 + Math.max(0, (leadTime - daysToSellOut) / leadTime) * 10;
         status = 'CRITICO';
         stockoutRiskCount++;
         suggestedPurchase = targetStockFor15Days - product.stock;
       } else if (daysToSellOut <= leadTime + 5) {
-        // Se acaba logo depois, é ALERTA.
-        stockoutRisk = 60 + Math.random() * 20;
+        // Se acaba na margem de segurança de 5 dias adicionais, é ALERTA
+        stockoutRisk = 60 + Math.max(0, ((leadTime + 5) - daysToSellOut) / 5) * 20;
         status = 'ALERTA';
         suggestedPurchase = targetStockFor15Days - product.stock;
       } else {
-        stockoutRisk = (leadTime / daysToSellOut) * 100;
+        stockoutRisk = Math.min(59, (leadTime / daysToSellOut) * 100);
       }
 
       demandResults.push({
@@ -176,6 +234,11 @@ export default function MLInsightsPage() {
 
   useEffect(() => {
     runPredictionModel();
+    // Polling: recalcula o modelo a cada 30 segundos para refletir mudanças de estoque/vendas
+    const interval = setInterval(() => {
+      runPredictionModel();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const getRiskColor = (score: number) => {
@@ -210,45 +273,113 @@ export default function MLInsightsPage() {
       </div>
 
       {/* DASHBOARD DE MÉTRICAS DA IA */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-primary/10 bg-white">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Card 1: Catálogo Analisado */}
+        <Card className="border-primary/5 shadow-sm bg-white overflow-hidden relative group transition-all duration-300 hover:shadow-md">
           <CardContent className="p-6">
-            <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mb-1">Catálogo Analisado</p>
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-primary/40" />
-              <p className="text-3xl font-black text-primary">{metrics.analyzedItems} <span className="text-sm text-primary/40">SKUs</span></p>
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Catálogo Analisado</p>
+                <h3 className="text-3xl font-black font-mono text-primary tracking-tight tabular-nums">
+                  {metrics.analyzedItems.toString().padStart(2, '0')} <span className="text-sm font-sans font-medium text-primary/40">SKUs</span>
+                </h3>
+              </div>
+              <div className="p-3 bg-primary/5 text-primary/40 rounded-xl transition-all duration-300 group-hover:bg-primary group-hover:text-white">
+                <Database className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Métrica: Risco de Vencer */}
-        <Card className="border-danger/20 bg-danger/5">
+        {/* Card 2: Risco de Vencimento */}
+        <Card className={cn(
+          "border-primary/5 shadow-sm bg-white overflow-hidden relative group transition-all duration-300 hover:shadow-md",
+          metrics.highRiskExpiry > 0 && "hover:border-danger/30"
+        )}>
+          {metrics.highRiskExpiry > 0 && (
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-danger" />
+          )}
           <CardContent className="p-6">
-            <p className="text-[10px] font-black text-danger/60 uppercase tracking-widest mb-1">Risco de Vencimento</p>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-6 h-6 text-danger" />
-              <p className="text-3xl font-black text-danger">{metrics.highRiskExpiry}</p>
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Risco de Vencimento</p>
+                <h3 className={cn(
+                  "text-3xl font-black font-mono tracking-tight tabular-nums",
+                  metrics.highRiskExpiry > 0 ? "text-danger" : "text-primary"
+                )}>
+                  {metrics.highRiskExpiry.toString().padStart(2, '0')}
+                </h3>
+              </div>
+              <div className={cn(
+                "p-3 rounded-xl transition-all duration-300",
+                metrics.highRiskExpiry > 0 
+                  ? "bg-danger/10 text-danger group-hover:bg-danger group-hover:text-white" 
+                  : "bg-primary/5 text-primary/40 group-hover:bg-primary group-hover:text-white"
+              )}>
+                <AlertTriangle className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Nova Métrica: Risco de Ruptura (Faltar Estoque) */}
-        <Card className="border-amber-500/20 bg-amber-500/5">
+        {/* Card 3: Risco de Ruptura (Faltar) */}
+        <Card className={cn(
+          "border-primary/5 shadow-sm bg-white overflow-hidden relative group transition-all duration-300 hover:shadow-md",
+          metrics.highRiskStockout > 0 && "hover:border-amber-500/30"
+        )}>
+          {metrics.highRiskStockout > 0 && (
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
+          )}
           <CardContent className="p-6">
-            <p className="text-[10px] font-black text-amber-600/60 uppercase tracking-widest mb-1">Risco de Ruptura (Faltar)</p>
-            <div className="flex items-center gap-2">
-              <PackageMinus className="w-6 h-6 text-amber-600" />
-              <p className="text-3xl font-black text-amber-600">{metrics.highRiskStockout}</p>
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Risco de Ruptura (Faltar)</p>
+                <h3 className={cn(
+                  "text-3xl font-black font-mono tracking-tight tabular-nums",
+                  metrics.highRiskStockout > 0 ? "text-amber-600" : "text-primary"
+                )}>
+                  {metrics.highRiskStockout.toString().padStart(2, '0')}
+                </h3>
+              </div>
+              <div className={cn(
+                "p-3 rounded-xl transition-all duration-300",
+                metrics.highRiskStockout > 0 
+                  ? "bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white" 
+                  : "bg-primary/5 text-primary/40 group-hover:bg-primary group-hover:text-white"
+              )}>
+                <PackageMinus className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
+        {/* Card 4: Recuperação Estimada */}
+        <Card className={cn(
+          "border-primary/5 shadow-sm bg-white overflow-hidden relative group transition-all duration-300 hover:shadow-md",
+          metrics.savedValue > 0 && "hover:border-emerald-500/30"
+        )}>
+          {metrics.savedValue > 0 && (
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />
+          )}
           <CardContent className="p-6">
-            <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Recuperação Estimada</p>
-            <div className="flex items-center gap-2">
-              <TrendingDown className="w-6 h-6 text-emerald-600" />
-              <p className="text-3xl font-mono font-black text-emerald-600">{formatCurrency(metrics.savedValue)}</p>
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Recuperação Estimada</p>
+                <h3 className={cn(
+                  "text-3xl font-black font-mono tracking-tight tabular-nums",
+                  metrics.savedValue > 0 ? "text-emerald-600" : "text-primary"
+                )}>
+                  {formatCurrency(metrics.savedValue)}
+                </h3>
+              </div>
+              <div className={cn(
+                "p-3 rounded-xl transition-all duration-300",
+                metrics.savedValue > 0 
+                  ? "bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white" 
+                  : "bg-primary/5 text-primary/40 group-hover:bg-primary group-hover:text-white"
+              )}>
+                <TrendingDown className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -263,7 +394,6 @@ export default function MLInsightsPage() {
             <TrendingUp className="w-5 h-5 text-amber-500" />
             Previsão de Demanda & Reposição Inteligente
           </h2>
-          <Badge className="bg-amber-100 text-amber-700 border-none font-bold tracking-widest">SÉRIES TEMPORAIS V2.0</Badge>
         </div>
 
         <div className="overflow-x-auto">
@@ -299,7 +429,11 @@ export default function MLInsightsPage() {
                     {item.suggestedPurchase > 0 ? (
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-[10px] font-bold text-primary/40 uppercase">Comprar Fornecedor</span>
-                        <Button size="sm" className="h-8 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary-dark gap-2">
+                        <Button 
+                          onClick={() => handlePurchaseRedirect(item.product.sku, item.suggestedPurchase)}
+                          size="sm" 
+                          className="h-8 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary-dark gap-2"
+                        >
                           <ShoppingCart className="w-3 h-3" /> + {item.suggestedPurchase} un
                         </Button>
                       </div>
@@ -347,7 +481,15 @@ export default function MLInsightsPage() {
                       <p className="font-bold text-primary">{item.product.name}</p>
                       <p className="text-[10px] text-primary/40 font-mono mt-0.5">Lote: {item.product.lote} | Estq: {item.product.stock}</p>
                     </td>
-                    <td className="p-5 font-mono font-bold text-primary/60">{item.daysToExpiry} dias</td>
+                    <td className="p-5 font-mono font-bold text-primary/60">
+                      {item.daysToExpiry < 0 ? (
+                        <span className="text-danger font-black">Vencido há {Math.abs(item.daysToExpiry)} {Math.abs(item.daysToExpiry) === 1 ? 'dia' : 'dias'}</span>
+                      ) : item.daysToExpiry === 0 ? (
+                        <span className="text-danger font-black">Vence Hoje!</span>
+                      ) : (
+                        `${item.daysToExpiry} dias`
+                      )}
+                    </td>
                     <td className="p-5">
                       <Badge className={cn("px-3 py-1 font-black", getRiskColor(item.riskScore))}>
                         {item.riskScore.toFixed(0)}% DE RISCO
@@ -365,7 +507,11 @@ export default function MLInsightsPage() {
                     </td>
                     <td className="p-5 text-right">
                       {item.suggestedDiscount > 0 ? (
-                        <Button size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary-dark">
+                        <Button 
+                          onClick={() => handleApplyDiscount(item.product.id, item.product.name, item.product.price, item.suggestedDiscount)}
+                          size="sm" 
+                          className="h-8 text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary-dark"
+                        >
                           Aplicar Preço
                         </Button>
                       ) : (

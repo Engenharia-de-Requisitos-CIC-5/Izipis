@@ -4,23 +4,24 @@
   --color-primary: #1850BF;
   --color-primary-light: #4A7CEB;
   --color-primary-dark: #0D3B94;
-  --color-primary-foreground: #FFFFFF;
+  --color-primary-foreground: #FAFBFD;
 
   --color-secondary: #DC0807;
   --color-secondary-light: #FF4D4D;
   --color-secondary-dark: #A10605;
-  --color-secondary-foreground: #FFFFFF;
+  --color-secondary-foreground: #FAFBFD;
 
   --color-accent: #DC0807;
-  --color-accent-foreground: #FFFFFF;
+  --color-accent-foreground: #FAFBFD;
 
   --color-danger: #DC0807;
-  --color-danger-foreground: #FFFFFF;
+  --color-danger-foreground: #FAFBFD;
 
   --color-success: #10B981;
-  --color-success-foreground: #FFFFFF;
+  --color-success-foreground: #FAFBFD;
 
-  --color-background: #FFFFFF;
+  --color-background: #DFE5F2;
+  --color-white: #FAFBFD;
   --color-foreground: #262626;
   
   --color-border: rgba(24, 80, 191, 0.1);
@@ -51,7 +52,7 @@
 }
 
 .glass {
-  @apply bg-white/60 backdrop-blur-xl border border-primary/5 shadow-2xl shadow-primary/5;
+  @apply bg-white border border-primary/5 shadow-2xl shadow-primary/5;
 }
 
 .card-gradient {

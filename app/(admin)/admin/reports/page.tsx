@@ -56,7 +56,7 @@ export default function ReportsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card className="bg-white/50 backdrop-blur-sm border-primary/5 hover:border-secondary/30 transition-all group">
+            <Card className="bg-white border-primary/5 hover:border-secondary/30 transition-all group">
               <CardContent className="p-6">
                 <p className="text-xs font-bold text-primary/40 uppercase tracking-widest mb-1">{stat.label}</p>
                 <div className="flex items-end justify-between">
@@ -83,7 +83,7 @@ export default function ReportsPage() {
               <Button size="sm" className="h-8 text-[10px] uppercase font-bold">Mensal</Button>
             </div>
           </CardHeader>
-          <CardContent className="h-[400px] flex flex-col justify-center items-center text-muted-foreground bg-white/30 rounded-b-3xl border-t border-primary/5">
+          <CardContent className="h-[400px] flex flex-col justify-center items-center text-muted-foreground bg-white rounded-b-3xl border-t border-primary/5">
             <BarChart3 className="w-16 h-16 text-primary/10 mb-4" />
             <p className="font-medium">Visualização Analítica Avançada</p>
             <span className="text-xs opacity-60 mt-1">Os dados estão sendo processados pela IA</span>
@@ -97,7 +97,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {REPORT_TYPES.map((type) => (
-                <div key={type.title} className="p-4 rounded-2xl bg-white/50 border border-primary/5 hover:border-secondary/50 transition-all cursor-pointer group">
+                <div key={type.title} className="p-4 rounded-2xl bg-white border border-primary/5 hover:border-secondary/50 transition-all cursor-pointer group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-secondary group-hover:text-white transition-all">
                       <type.icon className="w-5 h-5" />

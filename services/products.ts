@@ -41,7 +41,7 @@ const DEFAULT_PRODUCTS: Product[] = [
   { id: 'p17', name: 'Desinfetante Lavanda 1L', description: 'Desinfetante multiuso perfumado.', price: 8.20, category: 'Limpeza', stock: 60, sku: '78940003' },
   { id: 'p36', name: 'Amaciante de Roupas 2L', description: 'Perfume duradouro.', price: 18.50, category: 'Limpeza', stock: 25, sku: '78940005' },
   { id: 'p37', name: 'Água Sanitária 1L', description: 'Cloro ativo.', price: 4.50, category: 'Limpeza', stock: 50, sku: '78940006' },
-  { id: 'p38', name: 'Esponja de Aço (3 unid)', description: 'Limpeza pesada.', price: 3.90, category: 'Limpeza', stock: 40, sku: '78940007' },
+  { id: 'p38', name: 'Esponja de Aço', description: 'Limpeza pesada.', price: 3.90, category: 'Limpeza', stock: 40, sku: '78940007' },
 
   // Higiene Pessoal
   { id: 'p19', name: 'Sabonete em Barra 90g', description: 'Sabonete hidratante suave.', price: 2.30, category: 'Higiene', stock: 150, sku: '78950001' },
@@ -69,7 +69,7 @@ const DEFAULT_PRODUCTS: Product[] = [
   { id: 'p50', name: 'Carne Moída Patinho (500g)', description: 'Carne magra.', price: 24.50, category: 'Açougue', stock: 10, sku: '78980002' },
   { id: 'p51', name: 'Pizza Congelada Calabresa', description: 'Pronta em 15 min.', price: 16.90, category: 'Congelados', stock: 30, sku: '78980003' },
   { id: 'p52', name: 'Lasanha à Bolonhesa 600g', description: 'Sabor caseiro.', price: 14.80, category: 'Congelados', stock: 25, sku: '78980004' },
-  { id: 'p53', name: 'Hambúrguer Bovino (12 unid)', description: 'Carne bovina.', price: 22.00, category: 'Congelados', stock: 15, sku: '78980005' },
+  { id: 'p53', name: 'Hambúrguer Bovino', description: 'Carne bovina.', price: 22.00, category: 'Congelados', stock: 15, sku: '78980005' },
 
   // Pet Shop
   { id: 'p54', name: 'Ração para Cães 1kg', description: 'Sabor carne e vegetais.', price: 18.90, category: 'Pet Shop', stock: 40, sku: '78990001' },

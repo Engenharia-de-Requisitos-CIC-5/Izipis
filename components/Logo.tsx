@@ -24,7 +24,7 @@ export const IZIPISLogo: React.FC<LogoProps> = ({
 
   // Map color to hex or CSS variable
   const getBgColor = () => {
-    if (color === 'monochrome-white') return '#FFFFFF';
+    if (color === 'monochrome-white') return '#FAFBFD';
     if (color === 'monochrome-black') return '#000000';
     return '#0D3335'; // The "green" brand color
   };

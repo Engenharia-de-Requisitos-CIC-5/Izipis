@@ -32,6 +32,11 @@ export default function SalesHistoryPage() {
 
   useEffect(() => {
     loadSales();
+    // Polling: atualiza vendas a cada 10 segundos para refletir novas transações em tempo real
+    const interval = setInterval(() => {
+      loadSales();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadSales = async () => {

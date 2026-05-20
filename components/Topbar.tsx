@@ -3,13 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Search, 
-  Bell, 
   Calendar,
   ChevronDown,
   User,
-  LogOut,
-  Settings,
-  Shield
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -38,14 +35,14 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-20 bg-white/50 backdrop-blur-md border-b border-primary/5 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
+    <header className="h-20 bg-white border-b border-primary/5 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
       <div className="flex items-center gap-4 flex-1 max-w-xl pl-16 lg:pl-0">
         <div className="relative w-full group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40 group-focus-within:text-secondary transition-colors" />
           <input 
             type="text" 
             placeholder="Pesquisar por produtos, vendas ou clientes..." 
-            className="w-full bg-white/50 border border-primary/10 rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none placeholder:text-primary/30"
+            className="w-full bg-white border border-primary/10 rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none placeholder:text-primary/30"
           />
         </div>
       </div>
@@ -59,15 +56,6 @@ export default function Topbar() {
         <div className="h-8 w-[1px] bg-primary/5 mx-2" />
 
         <div className="flex items-center gap-4">
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative p-2.5 rounded-xl bg-white border border-primary/10 text-primary/60 hover:text-secondary transition-colors shadow-sm"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-white" />
-          </motion.button>
-
           <div className="relative" ref={menuRef}>
             <motion.div 
               whileHover={{ backgroundColor: 'rgba(var(--secondary-rgb), 0.05)' }}
@@ -98,16 +86,6 @@ export default function Topbar() {
                   </div>
 
                   <div className="space-y-1">
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-primary/60 hover:bg-primary/5 hover:text-primary transition-all">
-                      <Settings className="w-4 h-4" />
-                      Configurações
-                    </button>
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-primary/60 hover:bg-primary/5 hover:text-primary transition-all">
-                      <Shield className="w-4 h-4" />
-                      Segurança
-                    </button>
-                    
-                    <div className="h-[1px] bg-primary/5 my-2 mx-2" />
                     
                     <button 
                       onClick={handleLogout}

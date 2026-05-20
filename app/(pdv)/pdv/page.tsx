@@ -16,8 +16,6 @@ import {
   ShoppingBag,
   AlertTriangle,
   FileText,
-  Wifi,
-  WifiOff,
   Printer,
   Lock,
   Unlock,
@@ -31,14 +29,14 @@ import {
 } from 'lucide-react';
 import { getProducts } from '@/services/products';
 import { createSale, getSales } from '@/services/sales';
-import { Product, Sale } from '@/lib/types';
+import { Product, Sale, User as UserType } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { IZIPISLogo } from '@/components/Logo';
 import { useRouter } from 'next/navigation';
-import { logout } from '@/services/auth';
+import { logout, getStoredUser } from '@/services/auth';
 
 interface IFoodOrder {
   id: string;
@@ -61,6 +59,7 @@ export default function PDVPage() {
   // =========================================================================
   // ESTADOS DO SISTEMA
   // =========================================================================
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [initialCashInput, setInitialCashInput] = useState('');
   
@@ -72,10 +71,10 @@ export default function PDVPage() {
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'card' | 'pix'>('money');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [lastItem, setLastItem] = useState<Product | null>(null);
+  const [manualSkuInput, setManualSkuInput] = useState('');
   
   const [lastSaleDetails, setLastSaleDetails] = useState<any>(null);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(false);
   const [logs, setLogs] = useState<string[]>(['[SISTEMA] Aguardando abertura do caixa...']);
   
   // Estados do Fechamento de Caixa e Sangria/Suprimento
@@ -114,6 +113,7 @@ export default function PDVPage() {
       try {
         const data = await getProducts();
         setProducts(data);
+        setCurrentUser(getStoredUser());
         addLog('Produtos sincronizados. Base pronta.');
       } catch (error) {
         addLog('Erro ao carregar produtos. Verifique a conexão.');
@@ -245,33 +245,29 @@ export default function PDVPage() {
     setIsCheckingOut(true);
     
     try {
-      if (!isOffline) {
-        const saleItems = cart.map(item => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.product.price
-        }));
+      const saleItems = cart.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        quantity: item.quantity,
+        price: item.product.price
+      }));
 
-        await createSale({
-          items: saleItems,
-          total: totalPrice,
-          paymentMethod: paymentMethod,
-          source: 'LOCAL'
-        });
+      await createSale({
+        items: saleItems,
+        total: totalPrice,
+        paymentMethod: paymentMethod,
+        source: 'LOCAL'
+      });
 
-        setLastSaleDetails({
-          items: saleItems,
-          total: totalPrice,
-          paymentMethod: paymentMethod,
-          date: new Date().toLocaleString('pt-BR')
-        });
+      setLastSaleDetails({
+        items: saleItems,
+        total: totalPrice,
+        paymentMethod: paymentMethod,
+        date: new Date().toLocaleString('pt-BR')
+      });
 
-        const updatedProducts = await getProducts();
-        setProducts(updatedProducts);
-      } else {
-        addLog('Venda salva em cache local (Modo Offline).');
-      }
+      const updatedProducts = await getProducts();
+      setProducts(updatedProducts);
 
       setIsCheckingOut(false);
       setShowSuccess(true);
@@ -372,7 +368,7 @@ export default function PDVPage() {
         <div class="center bold title">MERCADINHO PEDRINHO 2</div>
         <div class="center">RELATÓRIO GERENCIAL - REDUÇÃO Z</div>
         <div class="center">Data: ${new Date().toLocaleString('pt-BR')}</div>
-        <div class="center">Operador: CAIXA 01</div>
+        <div class="center">Operador: ${currentUser?.name || 'Vendedor João'}</div>
         
         <div class="divider"></div>
         <div class="center bold" style="margin-bottom: 10px;">RESUMO DE VENDAS</div>
@@ -492,6 +488,7 @@ export default function PDVPage() {
         <div class="center">Rua Maria do Socorro, 159</div>
         <div class="center">CNPJ: 00.000.000/0001-00</div>
         <div class="center">Data: ${lastSaleDetails.date}</div>
+        <div class="center">Operador: ${currentUser?.name || 'Vendedor João'}</div>
         
         <div class="divider"></div>
         <div class="center bold">CUPOM NÃO FISCAL</div>
@@ -548,6 +545,18 @@ export default function PDVPage() {
     if (product) {
       handleAddToCart(product);
       setIsScannerOpen(false);
+    }
+  };
+
+  const handleManualScanSubmit = () => {
+    if (!manualSkuInput.trim()) return;
+    const product = products.find(p => p.sku === manualSkuInput.trim());
+    if (product) {
+      handleAddToCart(product);
+      setManualSkuInput('');
+      setIsScannerOpen(false);
+    } else {
+      alert('Produto com este código (SKU) não foi encontrado.');
     }
   };
 
@@ -613,8 +622,8 @@ export default function PDVPage() {
           <div className="h-4 w-[1px] bg-white/20" />
           <div className="flex items-center gap-4 text-[10px] font-bold text-white/70">
             <div className="flex items-center gap-1.5">
-              <User className="w-3 h-3" />
-              <span>CAIXA: 01</span>
+              <User className="w-3 h-3 text-secondary" />
+              <span className="uppercase">OPERADOR: {currentUser?.name || 'Vendedor João'}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Monitor className="w-3 h-3" />
@@ -624,19 +633,6 @@ export default function PDVPage() {
         </div>
 
         <div className="flex items-center gap-6">
-          <button 
-            onClick={() => {
-              setIsOffline(!isOffline);
-              addLog(`Conexão alterada para: ${!isOffline ? 'OFFLINE' : 'ONLINE'}`);
-            }}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold tracking-widest uppercase transition-colors border",
-              isOffline ? "bg-amber-500/20 text-amber-500 border-amber-500/50" : "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
-            )}
-          >
-            {isOffline ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
-            {isOffline ? 'Offline' : 'Online'}
-          </button>
           <div className="text-right hidden md:block">
             <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{new Date().toLocaleDateString('pt-BR')} | {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
@@ -948,8 +944,29 @@ export default function PDVPage() {
             key={item.key} 
             className="flex items-center gap-2 whitespace-nowrap cursor-pointer hover:opacity-80"
             onClick={() => {
-              if (item.key === 'F9') handleOpenCloseRegister();
+              if (item.key === 'F1') searchInputRef.current?.focus();
+              if (item.key === 'F2' && cart.length > 0 && !isCheckingOut) handleCheckout();
               if (item.key === 'F7') setShowDrawerModal(true);
+              if (item.key === 'F8' && selectedCartItemId) {
+                const cartItem = cart.find(i => i.product.id === selectedCartItemId);
+                if (cartItem) {
+                  const qtyStr = prompt(`Nova quantidade para ${cartItem.product.name}:`, cartItem.quantity.toString());
+                  const qty = parseInt(qtyStr || '', 10);
+                  if (!isNaN(qty) && qty >= 0) {
+                    updateQuantity(selectedCartItemId, qty - cartItem.quantity);
+                    addLog(`Quantidade de ${cartItem.product.name} alterada para ${qty}.`);
+                  }
+                }
+              }
+              if (item.key === 'F9') handleOpenCloseRegister();
+              if (item.key === 'DEL' && selectedCartItemId) {
+                const cartItem = cart.find(i => i.product.id === selectedCartItemId);
+                if (cartItem) {
+                  updateQuantity(selectedCartItemId, -cartItem.quantity);
+                  addLog(`Removido do cupom: ${cartItem.product.name}`);
+                  setSelectedCartItemId(null);
+                }
+              }
             }}
           >
             <kbd className="bg-primary/5 border border-primary/10 px-1.5 py-0.5 rounded text-[10px] font-black text-primary/60">{item.key}</kbd>
@@ -1087,7 +1104,32 @@ export default function PDVPage() {
                 </div>
 
                 <div className="flex flex-col min-h-0">
-                  <h3 className="font-bold text-primary mb-4">Seleção Rápida (Simulação):</h3>
+                  {/* Digitação Manual do Código */}
+                  <div className="mb-4 space-y-2">
+                    <label className="text-xs font-bold text-primary/60 uppercase tracking-wider block">Digitar Código (SKU)</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Ex: 78960002"
+                        value={manualSkuInput}
+                        onChange={(e) => setManualSkuInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleManualScanSubmit();
+                          }
+                        }}
+                        className="flex-1 bg-white border border-primary/10 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all font-sans"
+                      />
+                      <Button 
+                        onClick={handleManualScanSubmit}
+                        className="bg-secondary text-white hover:bg-secondary/90 px-4 rounded-xl text-xs font-black uppercase tracking-widest"
+                      >
+                        Bipar
+                      </Button>
+                    </div>
+                  </div>
+
+                  <h3 className="font-bold text-primary mb-2">Seleção Rápida:</h3>
                   <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                     {products.map(product => (
                       <button

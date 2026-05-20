@@ -13,7 +13,8 @@ import {
   Smartphone,
   Eye,
   X,
-  Printer
+  Printer,
+  Download
 } from 'lucide-react';
 import { getSales } from '@/services/sales';
 import { Sale } from '@/lib/types';
@@ -79,6 +80,29 @@ export default function SalesHistoryPage() {
     }
   };
 
+  const handleExportReport = () => {
+    const headers = ['ID da Venda', 'Data/Hora', 'Origem/Canal', 'Forma de Pagamento', 'Itens', 'Total'];
+    const rows = filteredSales.map(s => [
+      s.id,
+      new Date(s.timestamp).toLocaleString('pt-BR'),
+      s.source === 'IFOOD' ? 'iFood' : 'Balcão',
+      getPaymentName(s.paymentMethod),
+      s.items.reduce((acc, item) => acc + item.quantity, 0),
+      formatCurrency(s.total)
+    ]);
+    
+    // Configura delimitador ';' e 'sep=;' no topo para o Excel nacional abrir em colunas automaticamente.
+    const csvContent = "sep=;\n" + [headers.join(';'), ...rows.map(e => e.map(val => `"${val}"`).join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `relatorio_vendas_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-8 font-sans max-w-7xl mx-auto pb-12 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -86,9 +110,19 @@ export default function SalesHistoryPage() {
           <h1 className="text-4xl font-extrabold tracking-tight text-primary">Auditoria de Vendas</h1>
           <p className="text-foreground/60 font-medium">Histórico completo de transações e cupons fiscais emitidos.</p>
         </div>
-        <Badge variant="outline" className="h-10 px-4 rounded-xl border-primary/10 font-bold gap-2 text-primary/60 text-sm">
-          <Receipt className="w-4 h-4" /> {sales.length} Transações Registradas
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={handleExportReport}
+            variant="outline" 
+            className="h-10 px-4 rounded-xl gap-2 font-bold text-xs uppercase tracking-wider border-primary/10 hover:bg-primary/5 text-primary"
+          >
+            <Download className="w-4 h-4 text-secondary" />
+            Exportar Relatório
+          </Button>
+          <Badge variant="outline" className="h-10 px-4 rounded-xl border-primary/10 font-bold gap-2 text-primary/60 text-sm">
+            <Receipt className="w-4 h-4" /> {sales.length} Transações Registradas
+          </Badge>
+        </div>
       </div>
 
       <Card className="border-primary/5 shadow-sm bg-white overflow-hidden">

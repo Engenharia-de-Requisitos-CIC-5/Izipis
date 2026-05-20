@@ -101,7 +101,13 @@ export default function UserManagementPage() {
         const success = await deleteUser(userId);
         if (success) {
           setMessage({ type: 'success', text: 'Usuário removido com sucesso.' });
-          await refresh();
+          try {
+            const us = await getUsers();
+            usersRef.current = us;
+            setUsers(us);
+          } catch (e) {
+            console.error(e);
+          }
         } else {
           setMessage({ type: 'error', text: 'Erro ao remover o usuário.' });
         }

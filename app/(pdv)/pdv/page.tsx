@@ -368,7 +368,7 @@ export default function PDVPage() {
         <div class="center bold title">MERCADINHO PEDRINHO 2</div>
         <div class="center">RELATÓRIO GERENCIAL - REDUÇÃO Z</div>
         <div class="center">Data: ${new Date().toLocaleString('pt-BR')}</div>
-        <div class="center">Operador: ${currentUser?.name || 'Vendedor João'}</div>
+        <div class="center">Operador: ${currentUser?.name || 'João'}</div>
         
         <div class="divider"></div>
         <div class="center bold" style="margin-bottom: 10px;">RESUMO DE VENDAS</div>
@@ -488,7 +488,7 @@ export default function PDVPage() {
         <div class="center">Rua Maria do Socorro, 159</div>
         <div class="center">CNPJ: 00.000.000/0001-00</div>
         <div class="center">Data: ${lastSaleDetails.date}</div>
-        <div class="center">Operador: ${currentUser?.name || 'Vendedor João'}</div>
+        <div class="center">Operador: ${currentUser?.name || 'João'}</div>
         
         <div class="divider"></div>
         <div class="center bold">CUPOM NÃO FISCAL</div>
@@ -623,7 +623,7 @@ export default function PDVPage() {
           <div className="flex items-center gap-4 text-[10px] font-bold text-white/70">
             <div className="flex items-center gap-1.5">
               <User className="w-3 h-3 text-secondary" />
-              <span className="uppercase">OPERADOR: {currentUser?.name || 'Vendedor João'}</span>
+              <span className="uppercase">OPERADOR: {currentUser?.name || 'João'}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Monitor className="w-3 h-3" />

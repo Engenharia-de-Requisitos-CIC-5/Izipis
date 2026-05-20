@@ -9,7 +9,7 @@ const USERS: User[] = [
   },
   {
     id: '2',
-    name: 'Vendedor João',
+    name: 'João',
     email: 'joao@izipis.com',
     role: 'VENDOR',
   },

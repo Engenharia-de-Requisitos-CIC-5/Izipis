@@ -116,6 +116,16 @@ export default function RecebimentoPage() {
     return () => undefined;
   }, []);
 
+  const handleCancelSelectedProduct = () => {
+    setSelectedProduct(null);
+    if (receiptItems.length === 0) {
+      setNfData({ numeroNF: '', fornecedor: '' });
+    }
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
+
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchTerm) {
       const product = products.find(p => 
@@ -412,7 +422,7 @@ export default function RecebimentoPage() {
                     </div>
 
                     <div className="mt-4 flex gap-2">
-                      <Button type="button" variant="ghost" onClick={() => setSelectedProduct(null)} className="flex-1">Cancelar</Button>
+                      <Button type="button" variant="ghost" onClick={handleCancelSelectedProduct} className="flex-1">Cancelar</Button>
                       <Button type="submit" className="flex-[2] bg-secondary hover:bg-secondary/90 text-white font-bold">Adicionar à Nota</Button>
                     </div>
                   </motion.form>
